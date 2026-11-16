@@ -1,0 +1,1221 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0B1324" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Performance Log</title>
+  <style>
+    :root {
+      --bg: #0B1324;
+      --bg-gradient: radial-gradient(circle at 50% 0%, #162644 0%, #0B1324 65%, #070C18 100%);
+      --card: linear-gradient(145deg, #14223D 0%, #0F1A30 100%);
+      --card-solid: #121E36;
+      --elevated: #1C2D4F;
+      --input: #09101F;
+      --border: #293D63;
+      --border-shine: rgba(148, 184, 240, 0.18);
+      --text: #F1F5F9;
+      --muted: #94A3B8;
+      --dim: #64748B;
+      --accent: linear-gradient(135deg, #38BDF8 0%, #0284C7 100%);
+      --accent-solid: #38BDF8;
+      --accent-fg: #070C18;
+      --ok: #10B981;
+      --ok-bg: rgba(16, 185, 129, 0.16);
+      --warn: #F59E0B;
+      --warn-bg: rgba(245, 158, 11, 0.16);
+      --err: #F43F5E;
+      --err-bg: rgba(244, 63, 94, 0.16);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; font-family: -apple-system, BlinkMacSystemFont, "Inter", system-ui, sans-serif; }
+    body { background: var(--bg); background-image: var(--bg-gradient); background-attachment: fixed; color: var(--text); padding-bottom: calc(86px + env(safe-area-inset-bottom)); line-height: 1.42; }
+    .topbar { position: sticky; top: 0; z-index: 30; background: rgba(11, 19, 36, 0.88); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-bottom: 1px solid var(--border); padding: 12px 16px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35); }
+    .topbar-in { max-width: 600px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+    .title { font-size: 0.92rem; font-weight: 700; letter-spacing: 0.02em; color: var(--text); text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+    .sub { font-size: 0.72rem; color: var(--muted); }
+    .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 0.72rem; font-weight: 600; padding: 5px 10px; border-radius: 99px; background: var(--elevated); border: 1px solid var(--border); color: var(--text); cursor: pointer; box-shadow: inset 0 1px 0 var(--border-shine); }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--dim); }
+    .dot.on { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+    .dot.wait { background: var(--warn); box-shadow: 0 0 8px var(--warn); }
+    .wrap { max-width: 600px; margin: 0 auto; padding: 14px; }
+    .view { display: none; }
+    .view.active { display: block; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 14px; margin-bottom: 12px; box-shadow: 0 6px 18px rgba(4, 8, 18, 0.45), inset 0 1px 0 var(--border-shine); }
+    .sec-h { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 8px; }
+    .sec-t { font-size: 0.86rem; font-weight: 600; color: var(--text); }
+    label { display: block; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin-bottom: 4px; }
+    input, select, textarea { width: 100%; background: var(--input); border: 1px solid var(--border); color: var(--text); padding: 10px; border-radius: 10px; font-size: 16px; appearance: none; box-shadow: inset 0 2px 4px rgba(0,0,0,0.35); }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent-solid); background: #0D172B; }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .row3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .seg { display: grid; grid-template-columns: 1fr 1fr; background: var(--input); padding: 3px; border-radius: 10px; border: 1px solid var(--border); margin-bottom: 12px; }
+    .seg button { background: transparent; color: var(--muted); border: none; padding: 8px; font-size: 0.82rem; font-weight: 600; border-radius: 7px; cursor: pointer; }
+    .seg button.active { background: var(--elevated); color: var(--text); border: 1px solid var(--border); box-shadow: 0 2px 6px rgba(0,0,0,0.35), inset 0 1px 0 var(--border-shine); }
+    .btn { width: 100%; padding: 12px; border-radius: 10px; font-size: 0.86rem; font-weight: 700; border: none; cursor: pointer; background: var(--accent); color: var(--accent-fg); box-shadow: 0 4px 12px rgba(2, 132, 199, 0.35), inset 0 1px 0 rgba(255,255,255,0.35); }
+    .btn-sec { background: var(--elevated); color: var(--text); border: 1px solid var(--border); box-shadow: inset 0 1px 0 var(--border-shine); }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px dashed var(--border); padding: 9px; font-size: 0.78rem; box-shadow: none; }
+    .ex-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 13px; margin-bottom: 10px; box-shadow: 0 4px 14px rgba(4, 8, 18, 0.4), inset 0 1px 0 var(--border-shine); }
+    .ex-name { font-size: 0.94rem; font-weight: 700; background: transparent; border: none; padding: 0; margin-bottom: 6px; color: var(--text); box-shadow: none; }
+    .tags { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }
+    .tag { font-size: 0.7rem; font-weight: 600; padding: 3px 8px; border-radius: 6px; background: var(--elevated); color: var(--muted); border: 1px solid var(--border); }
+    .tag.up { background: var(--ok-bg); color: #34D399; border-color: rgba(16, 185, 129, 0.35); }
+    .tag.keep { background: var(--warn-bg); color: #FBBF24; border-color: rgba(245, 158, 11, 0.35); }
+    .tag.err { background: var(--err-bg); color: #FB7185; border-color: rgba(244, 63, 94, 0.35); }
+    .w-box { display: flex; gap: 4px; }
+    .u-tog { display: flex; background: var(--input); border: 1px solid var(--border); border-radius: 10px; padding: 2px; }
+    .u-btn { background: transparent; border: none; color: var(--dim); font-size: 0.74rem; font-weight: 700; padding: 0 8px; border-radius: 7px; cursor: pointer; }
+    .u-btn.active { background: var(--elevated); color: var(--text); border: 1px solid var(--border); }
+    .st-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-top: 8px; }
+    .st-btn { background: var(--input); border: 1px solid var(--border); color: var(--muted); padding: 7px 2px; border-radius: 7px; font-size: 0.71rem; font-weight: 600; cursor: pointer; }
+    .st-btn.active { background: var(--elevated); color: var(--accent-solid); border-color: var(--accent-solid); box-shadow: 0 0 8px rgba(56, 189, 248, 0.2); }
+    .bar-bg { width: 100%; height: 7px; background: var(--input); border: 1px solid var(--border); border-radius: 99px; overflow: hidden; margin: 5px 0; }
+    .bar-fg { height: 100%; background: var(--accent); transition: width 0.25s; border-radius: 99px; }
+    .chip-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .chip { background: var(--input); border: 1px solid var(--border); border-radius: 10px; padding: 10px; text-align: left; color: var(--text); cursor: pointer; box-shadow: inset 0 1px 0 rgba(255,255,255,0.04); }
+    .chip:active { background: var(--elevated); border-color: var(--accent-solid); }
+    .chip b { display: block; font-size: 0.78rem; margin-bottom: 2px; color: var(--text); }
+    .chip span { font-size: 0.68rem; color: var(--muted); }
+    .item-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 0.82rem; }
+    .item-row:last-child { border-bottom: none; }
+
+    /* Rangos, Emblemas SVG y Estadísticas */
+    .stat-tile { background: var(--input); border: 1px solid var(--border); border-radius: 10px; padding: 10px; text-align: center; box-shadow: inset 0 1px 0 rgba(255,255,255,0.05); }
+    .stat-num { font-size: 1.05rem; font-weight: 700; color: var(--accent-solid); }
+    .stat-lbl { font-size: 0.65rem; color: var(--muted); text-transform: uppercase; margin-top: 2px; font-weight: 600; }
+    .rank-showcase { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 12px; }
+    .rank-showcase-item { background: var(--input); border: 1px solid var(--border); border-radius: 9px; padding: 6px 4px; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 0.65rem; font-weight: 700; }
+    .rank-card { background: var(--input); border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin-bottom: 10px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.04); }
+    .rank-header-left { display: flex; align-items: center; gap: 10px; }
+    .rank-icon-box { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .rank-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 0.68rem; font-weight: 700; padding: 4px 9px; border-radius: 7px; letter-spacing: 0.03em; text-transform: uppercase; white-space: nowrap; }
+    .tier-scale { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+    .tier-chip { font-size: 0.63rem; color: var(--muted); background: var(--card-solid); padding: 4px 4px; border-radius: 5px; display: flex; align-items: center; justify-content: center; gap: 3px; border: 1px solid transparent; }
+    .tier-chip.current { color: var(--text); font-weight: 700; border-color: var(--accent-solid); background: var(--elevated); }
+
+    .nav { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(11, 19, 36, 0.94); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-top: 1px solid var(--border); padding-bottom: env(safe-area-inset-bottom); z-index: 40; }
+    .nav-in { max-width: 600px; margin: 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); }
+    .nav-b { background: transparent; border: none; color: var(--dim); padding: 11px 4px; font-size: 0.72rem; font-weight: 600; cursor: pointer; }
+    .nav-b.active { color: var(--accent-solid); font-weight: 700; }
+    .toast { position: fixed; bottom: 75px; left: 50%; transform: translateX(-50%); background: var(--accent); color: var(--accent-fg); padding: 8px 16px; border-radius: 99px; font-size: 0.76rem; font-weight: 700; opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 50; box-shadow: 0 4px 14px rgba(0,0,0,0.45); }
+    .toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <div>
+      <div class="title">PERFORMANCE LOG</div>
+      <div class="sub" id="topWeight">Meta: 65.0 a 75.0 kg</div>
+    </div>
+    <div class="pill" onclick="goTab('sync', document.querySelectorAll('.nav-b')[3])">
+      <span class="dot" id="syncDot"></span>
+      <span id="syncTxt">Conectando...</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- VISTA 1: ENTRENO -->
+  <section id="v-gym" class="view active">
+    <div class="card">
+      <div class="seg">
+        <button type="button" id="bSup" class="active" onclick="changeSplit('Superior')">Tren Superior</button>
+        <button type="button" id="bInf" onclick="changeSplit('Inferior')">Tren Inferior</button>
+      </div>
+      <div class="row3" style="margin-bottom:8px;">
+        <div>
+          <label>Fecha</label>
+          <input type="date" id="gDate" />
+        </div>
+        <div>
+          <label>RIR de Sesión</label>
+          <input type="text" id="gRir" value="RIR 2" placeholder="Ej. RIR 2" oninput="syncSessionRirRest()" />
+        </div>
+        <div>
+          <label>Descanso Series</label>
+          <input type="text" id="gRest" value="2:00 min" placeholder="Ej. 2:00 min" oninput="syncSessionRirRest()" />
+        </div>
+      </div>
+      <div>
+        <label>Contexto / Notas Generales</label>
+        <input type="text" id="gNotes" placeholder="Ej. Parar 2 antes del fallo, buena energía..." />
+      </div>
+    </div>
+    <div id="exList"></div>
+    <div style="display:flex; flex-direction:column; gap:8px; margin-top:10px;">
+      <button type="button" class="btn btn-ghost" onclick="addExtraEx()">+ Añadir ejercicio</button>
+      <button type="button" class="btn" onclick="saveWorkout()">Guardar Entrenamiento</button>
+    </div>
+  </section>
+
+  <!-- VISTA 2: NUTRICIÓN -->
+  <section id="v-nut" class="view">
+    <div class="card">
+      <div class="sec-h">
+        <span class="sec-t">Superávit Diario (2700 kcal)</span>
+        <input type="date" id="nDate" style="width:auto; padding:5px 8px; font-size:14px;" onchange="renderNut()" />
+      </div>
+      <div class="row2">
+        <div>
+          <div style="font-size:0.8rem;"><b id="cNow">0</b> / 2700 kcal</div>
+          <div class="bar-bg"><div id="cBar" class="bar-fg" style="width:0%"></div></div>
+          <div class="sub" id="cRem">Restan 2700 kcal</div>
+        </div>
+        <div>
+          <div style="font-size:0.8rem;"><b id="pNow">0g</b> / 140g Prot</div>
+          <div class="bar-bg"><div id="pBar" class="bar-fg" style="width:0%"></div></div>
+          <div class="sub">C: <span id="cbNow">0</span>g · G: <span id="fNow">0</span>g</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="sec-h"><span class="sec-t">Accesos Rápidos (1 Toque)</span></div>
+      <div class="chip-grid">
+        <button type="button" class="chip" onclick="quickFood('Desayuno (4 huevos + 2 panes)',440,31,28,22)"><b>4 Huevos + 2 Panes</b><span>440 kcal · 31g Prot</span></button>
+        <button type="button" class="chip" onclick="quickFood('Desayuno (5 huevos + 2 panes)',515,37,29,27)"><b>5 Huevos + 2 Panes</b><span>515 kcal · 37g Prot</span></button>
+        <button type="button" class="chip" onclick="quickFood('Lentejas guisadas (1 tazón)',280,17,38,6)"><b>Tazón de Lentejas</b><span>280 kcal · 17g Prot</span></button>
+        <button type="button" class="chip" onclick="quickFood('Quesadilla con carne/pollo (1 pza)',260,15,19,13)"><b>Quesadilla c/ Carne</b><span>260 kcal · 15g Prot</span></button>
+        <button type="button" class="chip" onclick="quickFood('Plátano (1 pza)',105,1.3,27,0.4)"><b>Plátano (1 pza)</b><span>105 kcal · 27g C</span></button>
+        <button type="button" class="chip" onclick="quickFood('Atún en lata drenado',190,26,0,9)"><b>Atún en Lata</b><span>190 kcal · 26g Prot</span></button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="sec-h">
+        <span class="sec-t">Catálogo de Comidas Mexicanas y Básicos</span>
+      </div>
+      <div style="margin-bottom:8px;">
+        <label>Buscar Platillo o Alimento</label>
+        <input type="text" id="fSearch" placeholder="Escribe ej. tamal, barbacoa, enchiladas, arroz..." oninput="renderFoodSel()" />
+      </div>
+      <div style="margin-bottom:8px;">
+        <label>Seleccionar de la Lista (<span id="fCount">0</span> opciones)</label>
+        <select id="fSel" onchange="prevFood()"></select>
+      </div>
+      <div class="row2" style="align-items:end;">
+        <div><label>Porciones / Piezas</label><input type="number" id="fQty" inputmode="decimal" value="1" step="0.25" min="0.25" oninput="prevFood()" /></div>
+        <button type="button" class="btn" onclick="addCatalogFood()">Registrar</button>
+      </div>
+      <div id="fPrev" class="sub" style="margin-top:8px;"></div>
+    </div>
+
+    <div class="card">
+      <div class="sec-h"><span class="sec-t">Comidas Registradas Hoy</span></div>
+      <div id="fList"></div>
+    </div>
+
+    <div class="card">
+      <div class="sec-h"><span class="sec-t">Añadir Otro Platillo Personalizado</span></div>
+      <div style="margin-bottom:8px;"><input type="text" id="nfName" placeholder="Nombre del platillo" /></div>
+      <div class="row2" style="margin-bottom:8px;">
+        <input type="number" id="nfCal" inputmode="numeric" placeholder="Calorías (kcal)" />
+        <input type="number" id="nfProt" inputmode="decimal" placeholder="Proteína (g)" />
+      </div>
+      <button type="button" class="btn btn-sec" onclick="createFood()">Guardar en Catálogo</button>
+    </div>
+  </section>
+
+  <!-- VISTA 3: PROGRESO, TIEMPO Y RANGOS MUNDIALES -->
+  <section id="v-prog" class="view">
+    <div class="card">
+      <div class="sec-h">
+        <div>
+          <div class="sec-t">Constancia y Tiempo desde el Día 1</div>
+          <div class="sub" id="timeSubtitle">Calculando desde tu primer registro...</div>
+        </div>
+        <span class="rank-badge" id="overallRankBadge">Evaluando</span>
+      </div>
+      <div class="row3" style="margin-bottom:10px;">
+        <div class="stat-tile">
+          <div class="stat-num" id="statDays">0</div>
+          <div class="stat-lbl">Días desde Día 1</div>
+        </div>
+        <div class="stat-tile">
+          <div class="stat-num" id="statSessions">0</div>
+          <div class="stat-lbl">Sesiones Totales</div>
+        </div>
+        <div class="stat-tile">
+          <div class="stat-num" id="statGainPct">+0%</div>
+          <div class="stat-lbl">Fuerza vs Día 1</div>
+        </div>
+      </div>
+      <div style="display:flex; justify-content:space-between; font-size:0.72rem; color:var(--muted);">
+        <span id="timeStartLbl">Inicio: --</span>
+        <span id="timeWeeksLbl">Semanas activas: --</span>
+      </div>
+      <div class="bar-bg"><div id="timeBar" class="bar-fg" style="width:0%;"></div></div>
+    </div>
+
+    <div class="card">
+      <div class="sec-h">
+        <span class="sec-t">Peso Corporal (Meta: 65.0 → 75.0 kg)</span>
+        <span class="tag up" id="wBadge">65.0 kg</span>
+      </div>
+      <div class="bar-bg" style="margin-bottom:10px;"><div id="wBar" class="bar-fg" style="width:5%"></div></div>
+      <div class="row2" style="margin-bottom:8px;">
+        <input type="date" id="wDate" />
+        <input type="number" id="wVal" inputmode="decimal" step="0.1" value="65.0" />
+      </div>
+      <button type="button" class="btn" onclick="saveWeight()">Actualizar Peso Corporal</button>
+      <div id="wList" style="margin-top:10px;"></div>
+    </div>
+
+    <div class="card">
+      <div class="sec-h">
+        <div>
+          <div class="sec-t">Insignias y Rangos en tus 15 Ejercicios</div>
+          <div class="sub" id="rankWeightNote">Ajustado a tu peso actual y ventaja mecánica en doble polea</div>
+        </div>
+      </div>
+      <div id="rankLegendStrip" class="rank-showcase"></div>
+      <div id="strengthRanksList"></div>
+    </div>
+
+    <div class="card">
+      <div class="sec-h"><span class="sec-t">Resumen para IA</span></div>
+      <textarea id="aiBox" rows="4" readonly style="font-size:12px; font-family:monospace; margin-bottom:8px; color:var(--muted);"></textarea>
+      <button type="button" class="btn btn-sec" onclick="copyAI()">Copiar Resumen para IA</button>
+    </div>
+
+    <div class="card">
+      <div class="sec-h">
+        <span class="sec-t">Historial de Sesiones (Google Sheets)</span>
+        <select id="hFilter" style="width:auto; padding:5px 8px; font-size:13px;" onchange="renderHist()">
+          <option value="Todos">Todos</option>
+          <option value="Superior">Superior</option>
+          <option value="Inferior">Inferior</option>
+        </select>
+      </div>
+      <div id="hList"></div>
+    </div>
+  </section>
+
+  <!-- VISTA 4: DATOS Y SHEETS -->
+  <section id="v-sync" class="view">
+    <div class="card">
+      <div class="sec-h"><span class="sec-t">Sincronización con Google Sheets</span></div>
+      <label>URL de Apps Script Conectada</label>
+      <input type="url" id="sUrl" style="margin-bottom:10px;" />
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <button type="button" class="btn" onclick="saveUrl()">Guardar URL y Descargar Historial</button>
+        <button type="button" class="btn btn-sec" onclick="pullFromSheets()">Actualizar Datos desde Sheets Ahora</button>
+        <button type="button" class="btn btn-ghost" onclick="flushQueue()">Enviar Cola Pendiente (<span id="qCnt">0</span>)</button>
+      </div>
+      <div id="sMsg" class="sub" style="margin-top:8px;"></div>
+    </div>
+  </section>
+</main>
+
+<div id="toast" class="toast">Guardado</div>
+
+<nav class="nav">
+  <div class="nav-in">
+    <button type="button" class="nav-b active" onclick="goTab('gym', this)">Entreno</button>
+    <button type="button" class="nav-b" onclick="goTab('nut', this)">Nutrición</button>
+    <button type="button" class="nav-b" onclick="goTab('prog', this)">Progreso</button>
+    <button type="button" class="nav-b" onclick="goTab('sync', this)">Sheets</button>
+  </div>
+</nav>
+
+<script>
+const DEFAULT_SHEET_URL = "https://script.google.com/macros/s/AKfycbyW2T66yyOpkl7idL633Ekb3NF1jPOp0GXleTFnNvdOa9dI6d06A7BnzntYI0blFmUp/exec";
+
+const TEMPLATES = {
+  Superior: [
+    ["Levantamiento horizontal hombros unilateral en polea", "kg", "Unilateral · Doble polea (2:1)", ""],
+    ["Bíceps predicador en máquina", "kg", "Bilateral 2 manos", "Cuidado bíceps izquierdo"],
+    ["Fly pecho en máquina", "kg", "Bilateral en máquina", ""],
+    ["Jalón de espalda con barra en polea", "kg", "Bilateral 2 manos · Agarre abierto", ""],
+    ["Remo cerrado en máquina", "kg", "Bilateral 2 manos · Agarre neutro", ""],
+    ["Jalón de tríceps unilateral en polea", "kg", "Unilateral · Doble polea (2:1)", ""],
+    ["Rear reverse delt unilateral en máquina", "kg", "Unilateral en máquina (1 brazo)", ""],
+    ["Shoulder press bilateral en máquina", "kg", "Bilateral · Nivel 8 · Agarre neutro", ""]
+  ],
+  Inferior: [
+    ["Apertura de piernas en máquina", "kg", "En máquina", ""],
+    ["Cierre de piernas en máquina", "kg", "En máquina", ""],
+    ["Femoral sentado en máquina", "kg", "En máquina", ""],
+    ["Máquina hack horizontal", "kg", "7 de distancia", ""],
+    ["Gemelos en máquina hack horizontal", "kg", "En máquina hack horizontal", ""],
+    ["Patada de glúteo unilateral parado en máquina", "kg", "Unilateral parado en máquina", ""],
+    ["Máquina de cuádriceps", "kg", "En máquina", ""]
+  ]
+};
+
+function canonicalExerciseName(rawName) {
+  const n = String(rawName || "").toLowerCase().trim();
+  if (!n) return "";
+  if (n.includes("hombros sentado")) return "__EXCLUIDO__";
+  if (n.includes("hombros en polea") || n.includes("hombros unilateral en polea")) return "Levantamiento horizontal hombros unilateral en polea";
+  if (n.includes("predicador")) return "Bíceps predicador en máquina";
+  if (n.includes("fly pecho")) return "Fly pecho en máquina";
+  if (n.includes("jalón de espalda") || n.includes("jalon de espalda")) return "Jalón de espalda con barra en polea";
+  if (n.includes("remo cerrado") || n.includes("remo cerrao")) return "Remo cerrado en máquina";
+  if (n.includes("tríceps") || n.includes("triceps")) return "Jalón de tríceps unilateral en polea";
+  if (n.includes("rear reverse")) return "Rear reverse delt unilateral en máquina";
+  if (n.includes("shoulder press")) return "Shoulder press bilateral en máquina";
+  if (n.includes("apertura de pierna")) return "Apertura de piernas en máquina";
+  if (n.includes("cierre de pierna")) return "Cierre de piernas en máquina";
+  if (n.includes("femoral")) return "Femoral sentado en máquina";
+  if (n.includes("gemelos")) return "Gemelos en máquina hack horizontal";
+  if (n.includes("hack horizontal")) return "Máquina hack horizontal";
+  if (n.includes("glúteo") || n.includes("gluteo")) return "Patada de glúteo unilateral parado en máquina";
+  if (n.includes("cuadriceps") || n.includes("cuádriceps")) return "Máquina de cuádriceps";
+  return rawName.trim();
+}
+
+const GOLD_AT_65KG = {
+  "Levantamiento horizontal hombros unilateral en polea": 18,
+  "Bíceps predicador en máquina": 30,
+  "Fly pecho en máquina": 55,
+  "Jalón de espalda con barra en polea": 52,
+  "Remo cerrado en máquina": 45,
+  "Jalón de tríceps unilateral en polea": 28,
+  "Rear reverse delt unilateral en máquina": 16,
+  "Shoulder press bilateral en máquina": 40,
+  "Apertura de piernas en máquina": 48,
+  "Cierre de piernas en máquina": 48,
+  "Femoral sentado en máquina": 45,
+  "Máquina hack horizontal": 85,
+  "Gemelos en máquina hack horizontal": 70,
+  "Patada de glúteo unilateral parado en máquina": 22,
+  "Máquina de cuádriceps": 50
+};
+
+const RANK_TIERS = [
+  { name: "Bronce", mult: 0.55, color: "#E09153", bg: "rgba(224, 145, 83, 0.16)" },
+  { name: "Plata", mult: 0.78, color: "#CBD5E1", bg: "rgba(203, 213, 225, 0.16)" },
+  { name: "Oro", mult: 1.00, color: "#FACC15", bg: "rgba(250, 204, 21, 0.16)" },
+  { name: "Platino", mult: 1.15, color: "#38BDF8", bg: "rgba(56, 189, 248, 0.18)" },
+  { name: "Esmeralda", mult: 1.30, color: "#34D399", bg: "rgba(52, 211, 153, 0.18)" },
+  { name: "Diamante", mult: 1.48, color: "#818CF8", bg: "rgba(129, 140, 248, 0.20)" },
+  { name: "Campeón", mult: 1.68, color: "#FB7185", bg: "rgba(251, 113, 133, 0.20)" },
+  { name: "Leyenda", mult: 1.90, color: "#E879F9", bg: "rgba(232, 121, 249, 0.22)" }
+];
+
+function getRankSVG(tierName, color, size = 22) {
+  const s = `width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:inline-block; vertical-align:middle; flex-shrink:0;"`;
+  switch (tierName) {
+    case "Bronce":
+      return `<svg ${s}><path d="M12 2L4 5.5V11.5C4 16.8 7.4 21.6 12 23C16.6 21.6 20 16.8 20 11.5V5.5L12 2Z" stroke="${color}" stroke-width="2" fill="${color}" fill-opacity="0.18"/><path d="M8.5 13.5L12 10L15.5 13.5" stroke="${color}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    case "Plata":
+      return `<svg ${s}><path d="M12 2L4 5.5V11.5C4 16.8 7.4 21.6 12 23C16.6 21.6 20 16.8 20 11.5V5.5L12 2Z" stroke="${color}" stroke-width="2" fill="${color}" fill-opacity="0.2"/><path d="M8.5 15L12 11.5L15.5 15M8.5 11L12 7.5L15.5 11" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    case "Oro":
+      return `<svg ${s}><polygon points="12,2 20,6.5 20,15.5 12,22 4,15.5 4,6.5" stroke="${color}" stroke-width="2" fill="${color}" fill-opacity="0.2"/><polygon points="12,6.5 13.6,10 17.5,10.4 14.6,13 15.4,16.8 12,14.8 8.6,16.8 9.4,13 6.5,10.4 10.4,10" fill="${color}"/></svg>`;
+    case "Platino":
+      return `<svg ${s}><path d="M12 2L21 7V17L12 22L3 17V7L12 2Z" stroke="${color}" stroke-width="2" fill="${color}" fill-opacity="0.18"/><polygon points="12,6 17,12 12,18 7,12" fill="${color}"/></svg>`;
+    case "Esmeralda":
+      return `<svg ${s}><polygon points="8,2 16,2 22,8 22,16 16,22 8,22 2,16 2,8" stroke="${color}" stroke-width="2" fill="${color}" fill-opacity="0.2"/><polygon points="9.5,6 14.5,6 18,9.5 18,14.5 14.5,18 9.5,18 6,14.5 6,9.5" stroke="${color}" stroke-width="1.6" fill="${color}" fill-opacity="0.4"/></svg>`;
+    case "Diamante":
+      return `<svg ${s}><polygon points="6,3 18,3 22,9 12,22 2,9" stroke="${color}" stroke-width="2" fill="${color}" fill-opacity="0.22"/><path d="M2 9H22M6 3L9 9L12 22L15 9L18 3" stroke="${color}" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
+    case "Campeón":
+      return `<svg ${s}><path d="M3 18H21V20H3V18ZM3 15L5 6L9.5 11L12 4L14.5 11L19 6L21 15H3Z" stroke="${color}" stroke-width="1.8" fill="${color}" fill-opacity="0.28" stroke-linejoin="round"/></svg>`;
+    case "Leyenda":
+    default:
+      return `<svg ${s}><polygon points="12,1 14.8,8.2 22.5,9.2 16.5,14.2 18.4,21.8 12,17.7 5.6,21.8 7.5,14.2 1.5,9.2 9.2,8.2" stroke="${color}" stroke-width="1.8" fill="${color}" fill-opacity="0.3"/><circle cx="12" cy="12.5" r="3" fill="${color}"/></svg>`;
+  }
+}
+
+const INITIAL_FOODS = [
+  { cat: "Antojitos y Maíz", name: "Quesadilla de queso en tortilla de maíz (1 pza)", cal: 190, prot: 8, carb: 18, fat: 9 },
+  { cat: "Antojitos y Maíz", name: "Quesadilla con carne / pollo / tinga (1 pza)", cal: 260, prot: 15, carb: 19, fat: 13 },
+  { cat: "Antojitos y Maíz", name: "Quesadilla frita de masa (1 pza)", cal: 340, prot: 12, carb: 32, fat: 18 },
+  { cat: "Antojitos y Maíz", name: "Enchiladas verdes o rojas con pollo (orden de 3)", cal: 520, prot: 32, carb: 48, fat: 22 },
+  { cat: "Antojitos y Maíz", name: "Enchiladas suizas gratinadas (orden de 3)", cal: 650, prot: 35, carb: 46, fat: 36 },
+  { cat: "Antojitos y Maíz", name: "Enmoladas de pollo (orden de 3)", cal: 580, prot: 30, carb: 55, fat: 26 },
+  { cat: "Antojitos y Maíz", name: "Enfrijoladas rellenas de pollo o queso (orden de 3)", cal: 490, prot: 25, carb: 54, fat: 19 },
+  { cat: "Antojitos y Maíz", name: "Tamal verde / rojo / mole / rajas (1 pza)", cal: 360, prot: 9, carb: 42, fat: 18 },
+  { cat: "Antojitos y Maíz", name: "Tamal oaxaqueño en hoja de plátano (1 pza)", cal: 420, prot: 12, carb: 44, fat: 22 },
+  { cat: "Antojitos y Maíz", name: "Guajolota / Torta de tamal (1 pza)", cal: 580, prot: 14, carb: 82, fat: 21 },
+  { cat: "Antojitos y Maíz", name: "Chilaquiles con pollo, crema y queso (1 plato)", cal: 590, prot: 32, carb: 52, fat: 28 },
+  { cat: "Antojitos y Maíz", name: "Chilaquiles con huevo estrellado (1 plato)", cal: 560, prot: 24, carb: 52, fat: 28 },
+  { cat: "Antojitos y Maíz", name: "Tacos dorados de pollo con crema y queso (orden de 4)", cal: 480, prot: 26, carb: 44, fat: 22 },
+  { cat: "Antojitos y Maíz", name: "Tostadas de tinga / pollo / pata (2 pzas)", cal: 390, prot: 22, carb: 34, fat: 18 },
+  { cat: "Antojitos y Maíz", name: "Sope o Huarache sencillo con frijoles y queso (1 pza)", cal: 310, prot: 10, carb: 42, fat: 11 },
+  { cat: "Antojitos y Maíz", name: "Sope o Huarache con bistec / pollo / cecina (1 pza)", cal: 460, prot: 26, carb: 44, fat: 19 },
+  { cat: "Antojitos y Maíz", name: "Gordita de chicharrón o requesón (1 pza)", cal: 390, prot: 16, carb: 38, fat: 19 },
+  { cat: "Antojitos y Maíz", name: "Pambazo de papa con chorizo (1 pza)", cal: 520, prot: 18, carb: 58, fat: 24 },
+  { cat: "Antojitos y Maíz", name: "Pozole blanco o rojo con carne (1 tazón mediano)", cal: 450, prot: 32, carb: 42, fat: 16 },
+  { cat: "Barbacoa, Tacos y Tortas", name: "Tacos de barbacoa (orden de 3 tacos)", cal: 540, prot: 36, carb: 39, fat: 26 },
+  { cat: "Barbacoa, Tacos y Tortas", name: "Barbacoa de borrego/res (porción 150g solo carne)", cal: 320, prot: 33, carb: 0, fat: 21 },
+  { cat: "Barbacoa, Tacos y Tortas", name: "Consomé de barbacoa con arroz y garbanzo (1 tazón)", cal: 160, prot: 9, carb: 18, fat: 6 },
+  { cat: "Barbacoa, Tacos y Tortas", name: "Tacos al pastor (orden de 4)", cal: 620, prot: 32, carb: 60, fat: 26 },
+  { cat: "Barbacoa, Tacos y Tortas", name: "Tacos de suadero o campechanos (orden de 3)", cal: 540, prot: 29, carb: 39, fat: 29 },
+  { cat: "Barbacoa, Tacos y Tortas", name: "Tacos de bistec o pechuga (orden de 3)", cal: 490, prot: 33, carb: 39, fat: 22 },
+  { cat: "Barbacoa, Tacos y Tortas", name: "Tacos de carnitas (orden de 2 bien servidos)", cal: 520, prot: 32, carb: 36, fat: 27 },
+  { cat: "Barbacoa, Tacos y Tortas", name: "Tacos de canasta (orden de 4)", cal: 500, prot: 16, carb: 56, fat: 24 },
+  { cat: "Barbacoa, Tacos y Tortas", name: "Alambre con queso (orden)", cal: 640, prot: 45, carb: 18, fat: 42 },
+  { cat: "Barbacoa, Tacos y Tortas", name: "Gringa al pastor con queso en harina (1 pza)", cal: 440, prot: 24, carb: 36, fat: 22 },
+  { cat: "Barbacoa, Tacos y Tortas", name: "Sincronizada de jamón y queso (2 tortillas harina)", cal: 380, prot: 20, carb: 34, fat: 18 },
+  { cat: "Barbacoa, Tacos y Tortas", name: "Burrito de carne o pollo con frijoles (1 pza)", cal: 560, prot: 32, carb: 54, fat: 24 },
+  { cat: "Barbacoa, Tacos y Tortas", name: "Torta de pollo (1 pza)", cal: 580, prot: 34, carb: 64, fat: 19 },
+  { cat: "Barbacoa, Tacos y Tortas", name: "Torta de milanesa / pierna / jamón con queso (1 pza)", cal: 640, prot: 36, carb: 66, fat: 25 },
+  { cat: "Barbacoa, Tacos y Tortas", name: "Molletes con frijoles y queso gratinado (2 mitades)", cal: 410, prot: 18, carb: 48, fat: 16 },
+  { cat: "Barbacoa, Tacos y Tortas", name: "Hamburguesa McDonald's", cal: 250, prot: 13, carb: 30, fat: 9 },
+  { cat: "Sopas, Leguminosas y Arroz", name: "Lentejas guisadas caseras (1 tazón / plato)", cal: 280, prot: 17, carb: 38, fat: 6 },
+  { cat: "Sopas, Leguminosas y Arroz", name: "Frijoles de la olla (1 taza)", cal: 220, prot: 14, carb: 38, fat: 1 },
+  { cat: "Sopas, Leguminosas y Arroz", name: "Frijoles refritos (1/2 taza)", cal: 190, prot: 9, carb: 24, fat: 7 },
+  { cat: "Sopas, Leguminosas y Arroz", name: "Arroz cocido blanco o rojo (150g / 1 taza)", cal: 205, prot: 4.3, carb: 44, fat: 0.4 },
+  { cat: "Sopas, Leguminosas y Arroz", name: "Consomé de verduras con pollo deshebrado (1 plato)", cal: 175, prot: 18, carb: 14, fat: 5 },
+  { cat: "Sopas, Leguminosas y Arroz", name: "Consomé de verduras (1 plato)", cal: 85, prot: 3, carb: 12, fat: 2.5 },
+  { cat: "Sopas, Leguminosas y Arroz", name: "Sopa aguada de fideo / pasta (1 tazón)", cal: 180, prot: 5, carb: 30, fat: 4 },
+  { cat: "Sopas, Leguminosas y Arroz", name: "Espagueti rojo o blanco a la crema (1 taza)", cal: 260, prot: 8, carb: 40, fat: 7 },
+  { cat: "Guisados y Proteínas", name: "Bistec de res a la plancha o encebollado (150g)", cal: 270, prot: 38, carb: 0, fat: 12 },
+  { cat: "Guisados y Proteínas", name: "Pechuga de pollo a la plancha (150g)", cal: 245, prot: 45, carb: 0, fat: 5 },
+  { cat: "Guisados y Proteínas", name: "Milanesa de pollo o res empanizada (1 pza mediana)", cal: 340, prot: 32, carb: 16, fat: 16 },
+  { cat: "Guisados y Proteínas", name: "Pierna de pollo (1 pza)", cal: 185, prot: 24, carb: 0, fat: 9 },
+  { cat: "Guisados y Proteínas", name: "Pollo rostizado (1/4 pollo)", cal: 420, prot: 46, carb: 2, fat: 24 },
+  { cat: "Guisados y Proteínas", name: "Carne de hamburguesa (110g)", cal: 240, prot: 22, carb: 1, fat: 16 },
+  { cat: "Guisados y Proteínas", name: "Atún en lata con aceite (drenado)", cal: 190, prot: 26, carb: 0, fat: 9 },
+  { cat: "Guisados y Proteínas", name: "Picadillo de res con verduras (1 taza)", cal: 310, prot: 26, carb: 14, fat: 17 },
+  { cat: "Guisados y Proteínas", name: "Tinga de pollo o res (1 taza)", cal: 270, prot: 28, carb: 10, fat: 13 },
+  { cat: "Guisados y Proteínas", name: "Mole con pollo (muslo o pechuga en mole)", cal: 460, prot: 32, carb: 28, fat: 25 },
+  { cat: "Guisados y Proteínas", name: "Chicharrón en salsa verde o roja (1 plato)", cal: 420, prot: 26, carb: 8, fat: 32 },
+  { cat: "Guisados y Proteínas", name: "Costilla de res o cerdo en salsa (1 plato)", cal: 430, prot: 30, carb: 8, fat: 31 },
+  { cat: "Guisados y Proteínas", name: "Cochinita pibil (porción 150g)", cal: 330, prot: 31, carb: 4, fat: 21 },
+  { cat: "Guisados y Proteínas", name: "Carnitas de cerdo (porción 150g)", cal: 390, prot: 34, carb: 0, fat: 28 },
+  { cat: "Guisados y Proteínas", name: "Chile relleno de queso o carne capeado (1 pza)", cal: 380, prot: 18, carb: 20, fat: 26 },
+  { cat: "Guisados y Proteínas", name: "Tortitas de papa con queso o atún (2 pzas)", cal: 310, prot: 16, carb: 28, fat: 15 },
+  { cat: "Guisados y Proteínas", name: "Calabacitas a la mexicana con elote y queso (1 taza)", cal: 210, prot: 14, carb: 16, fat: 10 },
+  { cat: "Guisados y Proteínas", name: "Filete de pescado a la plancha o empanizado (150g)", cal: 260, prot: 32, carb: 8, fat: 11 },
+  { cat: "Desayunos, Frutas y Básicos", name: "Huevos revueltos con jamón o salchicha (2 huevos)", cal: 240, prot: 18, carb: 2, fat: 18 },
+  { cat: "Desayunos, Frutas y Básicos", name: "Huevos a la mexicana (2 huevos)", cal: 180, prot: 13, carb: 4, fat: 13 },
+  { cat: "Desayunos, Frutas y Básicos", name: "Huevo entero cocido o estrellado (1 pza)", cal: 75, prot: 6.3, carb: 0.6, fat: 5 },
+  { cat: "Desayunos, Frutas y Básicos", name: "Tortilla de maíz (1 pza)", cal: 64, prot: 1.5, carb: 13.5, fat: 0.5 },
+  { cat: "Desayunos, Frutas y Básicos", name: "Tortilla de harina (1 pza)", cal: 95, prot: 2.5, carb: 16, fat: 2.5 },
+  { cat: "Desayunos, Frutas y Básicos", name: "Bolillo o Telera sin migajón (1 pza)", cal: 140, prot: 4.5, carb: 28, fat: 1 },
+  { cat: "Desayunos, Frutas y Básicos", name: "Pan integral de caja (1 rebanada)", cal: 70, prot: 3, carb: 12, fat: 1 },
+  { cat: "Desayunos, Frutas y Básicos", name: "Pan dulce mexicano / Concha (1 pza)", cal: 290, prot: 5, carb: 45, fat: 10 },
+  { cat: "Desayunos, Frutas y Básicos", name: "Avena cocida con leche (1 taza)", cal: 260, prot: 11, carb: 39, fat: 6.5 },
+  { cat: "Desayunos, Frutas y Básicos", name: "Licuado de plátano con leche y avena (1 vaso 400ml)", cal: 360, prot: 13, carb: 58, fat: 8 },
+  { cat: "Desayunos, Frutas y Básicos", name: "Leche entera o deslactosada (1 vaso 250ml)", cal: 150, prot: 8, carb: 12, fat: 8 },
+  { cat: "Desayunos, Frutas y Básicos", name: "Queso Oaxaca / Panela / Manchego (porción 50g)", cal: 140, prot: 11, carb: 1, fat: 10 },
+  { cat: "Desayunos, Frutas y Básicos", name: "Aguacate (1/2 pieza mediana)", cal: 120, prot: 1.5, carb: 6, fat: 11 },
+  { cat: "Desayunos, Frutas y Básicos", name: "Plátano (1 pza)", cal: 105, prot: 1.3, carb: 27, fat: 0.4 },
+  { cat: "Desayunos, Frutas y Básicos", name: "Manzana (1 pza)", cal: 95, prot: 0.5, carb: 25, fat: 0.3 },
+  { cat: "Desayunos, Frutas y Básicos", name: "Fruta deshidratada (40g)", cal: 135, prot: 1, carb: 32, fat: 0.2 },
+  { cat: "Desayunos, Frutas y Básicos", name: "Mantequilla de maní natural (1 cda)", cal: 95, prot: 4, carb: 3, fat: 8 },
+  { cat: "Desayunos, Frutas y Básicos", name: "Yogur griego natural (150g)", cal: 130, prot: 15, carb: 6, fat: 4 }
+];
+
+const MONTHS_ES = {
+  enero: "01", febrero: "02", marzo: "03", abril: "04", mayo: "05", junio: "06",
+  julio: "07", agosto: "08", septiembre: "09", setiembre: "09", octubre: "10", noviembre: "11", diciembre: "12"
+};
+
+// Interpreta fechas ISO, dd/mm/yyyy y textos en español sin año (ej. "26 de agosto" -> "2026-08-26")
+function normalizeDate(raw) {
+  if (!raw) return "";
+  const s = String(raw).trim().toLowerCase();
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  const dmy = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+  if (dmy) {
+    return `${dmy[3]}-${dmy[2].padStart(2, "0")}-${dmy[1].padStart(2, "0")}`;
+  }
+  const esMatch = s.match(/(\d{1,2})\s+de\s+([a-záéíóú]+)(?:\s+de\s+(\d{4}))?/);
+  if (esMatch && MONTHS_ES[esMatch[2]]) {
+    const yr = esMatch[3] || "2026";
+    return `${yr}-${MONTHS_ES[esMatch[2]]}-${esMatch[1].padStart(2, "0")}`;
+  }
+  const parsed = new Date(raw);
+  if (!isNaN(parsed.getTime())) {
+    return parsed.toISOString().split("T")[0];
+  }
+  return "";
+}
+
+function cleanReps(val) {
+  if (val === null || val === undefined) return "";
+  const s = String(val).trim();
+  if (s.includes("GMT") || /^\d{4}-\d{2}-\d{2}T/.test(s)) {
+    const d = new Date(s);
+    if (!isNaN(d.getTime())) {
+      const day = d.getDate();
+      const month = d.getMonth() + 1;
+      const yr = d.getFullYear() % 100;
+      if (yr === 26) return `${day}, ${month}`;
+      return `${day}, ${month}, ${yr}`;
+    }
+  }
+  return s;
+}
+
+function toKg(w, u) {
+  return u === "lbs" ? +(w / 2.20462).toFixed(1) : +Number(w).toFixed(1);
+}
+
+function normalizeTricepsUnilateralKg(canonName, kg) {
+  if (canonName === "Jalón de tríceps unilateral en polea" && kg >= 36) {
+    return Math.floor(kg / 2);
+  }
+  return kg;
+}
+
+// Nunca descarta sesiones: si una fila tenía fecha vacía en Sheets, conserva la sesión con la fecha base
+function sanitizeWorkoutsList(list) {
+  if (!Array.isArray(list)) return [];
+  const cleaned = list.map(s => {
+    const normDate = normalizeDate(s.date) || "2026-08-02";
+    return {
+      ...s,
+      date: normDate,
+      exercises: (s.exercises || []).map(e => ({
+        ...e,
+        reps: cleanReps(e.reps)
+      }))
+    };
+  });
+  cleaned.sort((a, b) => a.date.localeCompare(b.date));
+  return cleaned;
+}
+
+function loadMergedCatalog() {
+  const saved = JSON.parse(localStorage.getItem("gym_foods_v1")) || [];
+  const merged = [...INITIAL_FOODS];
+  saved.forEach(item => {
+    const exists = merged.some(m => m.name.toLowerCase() === item.name.toLowerCase());
+    if (!exists) {
+      merged.push({ cat: item.cat || "Mis Platillos Personalizados", ...item });
+    }
+  });
+  localStorage.setItem("gym_foods_v1", JSON.stringify(merged));
+  return merged;
+}
+
+let curSplit = "Superior";
+let workouts = sanitizeWorkoutsList(JSON.parse(localStorage.getItem("gym_cloud_workouts")) || []);
+let foods = loadMergedCatalog();
+let nutLogs = JSON.parse(localStorage.getItem("gym_cloud_nutrilogs")) || {};
+let weights = JSON.parse(localStorage.getItem("gym_cloud_weights")) || [{ date: "2026-11-16", weight: 65.0 }];
+let sheetUrl = localStorage.getItem("gym_sheets_url_v1") || DEFAULT_SHEET_URL;
+let queue = JSON.parse(localStorage.getItem("gym_sync_queue_v1")) || [];
+
+function saveLocal() {
+  localStorage.setItem("gym_cloud_workouts", JSON.stringify(workouts));
+  localStorage.setItem("gym_foods_v1", JSON.stringify(foods));
+  localStorage.setItem("gym_cloud_nutrilogs", JSON.stringify(nutLogs));
+  localStorage.setItem("gym_cloud_weights", JSON.stringify(weights));
+  localStorage.setItem("gym_sync_queue_v1", JSON.stringify(queue));
+  updateSyncBadge();
+}
+
+function toast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  setTimeout(() => el.classList.remove("show"), 2000);
+}
+
+function findLastEx(targetName) {
+  const targetCanon = canonicalExerciseName(targetName);
+  for (let i = workouts.length - 1; i >= 0; i--) {
+    const f = workouts[i].exercises.find(e => canonicalExerciseName(e.name) === targetCanon);
+    if (f) {
+      const rawKg = toKg(f.weight, f.unit);
+      if (targetCanon === "Jalón de tríceps unilateral en polea" && rawKg >= 36) {
+        return { ...f, weight: normalizeTricepsUnilateralKg(targetCanon, rawKg), unit: "kg" };
+      }
+      return f;
+    }
+  }
+  return null;
+}
+
+function getAdvice(last) {
+  if (!last) return { txt: "Sin registro previo", cls: "tag" };
+  const cleanR = cleanReps(last.reps);
+  const r1 = parseInt(cleanR.split(",")[0], 10) || 0;
+  if (last.status === "❎") return { txt: `Prev: ${last.weight}${last.unit} (${cleanR}) · Cuidar carga`, cls: "tag err" };
+  if (r1 >= 12) return { txt: `Prev: ${last.weight}${last.unit} (${cleanR}) · Subir +2.5 a 5kg`, cls: "tag up" };
+  return { txt: `Prev: ${last.weight}${last.unit} (${cleanR}) · Buscar +1 rep`, cls: "tag keep" };
+}
+
+function warmupTxt(w, u) {
+  const v = parseFloat(w) || 0;
+  if (u === "lbs") return `Aprox: ${Math.max(5, Math.round(v - 20))}–${Math.max(5, Math.round(v - 10))} lbs (~${(v / 2.2046).toFixed(1)} kg)`;
+  return `Aprox: ${Math.max(2, Math.round(v - 10))}–${Math.max(2, Math.round(v - 4))} kg`;
+}
+
+function changeSplit(s) {
+  curSplit = s;
+  document.getElementById("bSup").classList.toggle("active", s === "Superior");
+  document.getElementById("bInf").classList.toggle("active", s === "Inferior");
+  document.getElementById("gRest").value = s === "Superior" ? "2:00 min" : "1:30 min";
+  renderExList();
+}
+
+function syncSessionRirRest() {
+  const rirVal = document.getElementById("gRir").value;
+  const restVal = document.getElementById("gRest").value;
+  document.querySelectorAll("#exList .ex-card").forEach(c => {
+    c.querySelector(".i-rir").value = rirVal;
+    c.querySelector(".i-rest").value = restVal;
+  });
+}
+
+function renderExList() {
+  const box = document.getElementById("exList");
+  box.innerHTML = "";
+  TEMPLATES[curSplit].forEach(t => box.appendChild(makeExCard(t[0], t[1], t[2], t[3])));
+}
+
+function makeExCard(name, defU, setup, warn) {
+  const last = findLastEx(name);
+  const adv = getAdvice(last);
+  const w = last ? last.weight : 25;
+  const u = last ? last.unit : defU;
+  const cleanLastReps = last ? cleanReps(last.reps) : "10, 8, 6";
+  const defRir = document.getElementById("gRir")?.value || "RIR 2";
+  const defRest = document.getElementById("gRest")?.value || (curSplit === "Superior" ? "2:00 min" : "1:30 min");
+
+  const div = document.createElement("div");
+  div.className = "ex-card";
+  div.dataset.unit = u;
+  div.dataset.status = "☑️";
+  div.innerHTML = `
+    <input type="text" class="ex-name" value="${name}" />
+    <div class="tags">
+      <span class="${adv.cls}">${adv.txt}</span>
+      <span class="tag w-tag">${warmupTxt(w, u)}</span>
+      ${warn ? `<span class="tag err">${warn}</span>` : ""}
+    </div>
+    <div class="row2" style="margin-bottom:8px;">
+      <div>
+        <label>Peso en Placas / Efectivo</label>
+        <div class="w-box">
+          <input type="number" class="i-w" inputmode="decimal" step="0.5" value="${w}" oninput="updWarm(this)" />
+          <div class="u-tog">
+            <button type="button" class="u-btn ${u==='kg'?'active':''}" onclick="setU(this,'kg')">kg</button>
+            <button type="button" class="u-btn ${u==='lbs'?'active':''}" onclick="setU(this,'lbs')">lbs</button>
+          </div>
+        </div>
+      </div>
+      <div>
+        <label>Series / Reps</label>
+        <input type="text" class="i-r" placeholder="${cleanLastReps}" />
+      </div>
+    </div>
+    <div class="row3" style="margin-bottom:6px;">
+      <div>
+        <label>RIR</label>
+        <input type="text" class="i-rir" value="${defRir}" style="font-size:13px; padding:7px 8px;" />
+      </div>
+      <div>
+        <label>Descanso</label>
+        <input type="text" class="i-rest" value="${defRest}" style="font-size:13px; padding:7px 8px;" />
+      </div>
+      <div>
+        <label>Modalidad / Setup</label>
+        <input type="text" class="i-n" value="${setup}" placeholder="Setup" style="font-size:13px; padding:7px 8px;" />
+      </div>
+    </div>
+    <div class="st-row">
+      <button type="button" class="st-btn active" onclick="setSt(this,'☑️')">Cumplido</button>
+      <button type="button" class="st-btn" onclick="setSt(this,'✅')">Dominado</button>
+      <button type="button" class="st-btn" onclick="setSt(this,'📉')">Bajón</button>
+      <button type="button" class="st-btn" onclick="setSt(this,'❎')">Molestia</button>
+    </div>
+  `;
+  return div;
+}
+
+function updWarm(el) {
+  const c = el.closest(".ex-card");
+  c.querySelector(".w-tag").textContent = warmupTxt(el.value, c.dataset.unit);
+}
+function setU(btn, u) {
+  const c = btn.closest(".ex-card");
+  c.dataset.unit = u;
+  c.querySelectorAll(".u-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  c.querySelector(".w-tag").textContent = warmupTxt(c.querySelector(".i-w").value, u);
+}
+function setSt(btn, st) {
+  const c = btn.closest(".ex-card");
+  c.dataset.status = st;
+  c.querySelectorAll(".st-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+}
+function addExtraEx() {
+  document.getElementById("exList").appendChild(makeExCard("Ejercicio Extra", "kg", "", ""));
+}
+
+function saveWorkout() {
+  const date = normalizeDate(document.getElementById("gDate").value) || new Date().toISOString().split("T")[0];
+  const sessionRir = document.getElementById("gRir").value.trim();
+  const sessionRest = document.getElementById("gRest").value.trim();
+  const rawNotes = document.getElementById("gNotes").value.trim();
+  const sessionNotes = [sessionRir, `Descanso ${sessionRest}`, rawNotes].filter(Boolean).join(" · ");
+
+  const exercises = [];
+  document.querySelectorAll("#exList .ex-card").forEach(c => {
+    const reps = c.querySelector(".i-r").value.trim();
+    if (!reps) return;
+    const exRir = c.querySelector(".i-rir").value.trim();
+    const exRest = c.querySelector(".i-rest").value.trim();
+    const exSetup = c.querySelector(".i-n").value.trim();
+    const combinedExNotes = [exSetup, exRir, exRest].filter(Boolean).join(" | ");
+
+    exercises.push({
+      name: c.querySelector(".ex-name").value.trim(),
+      weight: parseFloat(c.querySelector(".i-w").value) || 0,
+      unit: c.dataset.unit,
+      reps: cleanReps(reps),
+      status: c.dataset.status,
+      notes: combinedExNotes
+    });
+  });
+  if (!exercises.length) return toast("Ingresa repeticiones en al menos 1 ejercicio");
+  const s = { date, split: curSplit, sessionNotes, exercises };
+  workouts.push(s);
+  workouts.sort((a, b) => a.date.localeCompare(b.date));
+  saveLocal();
+  renderExList();
+  renderProgressAndRanks();
+  renderHist();
+  updAI();
+  toast("Sesión guardada");
+  enqueue({ type: "workout", payload: s });
+}
+
+// Nutrición
+function renderFoodSel() {
+  const sel = document.getElementById("fSel");
+  const query = (document.getElementById("fSearch")?.value || "").toLowerCase().trim();
+  sel.innerHTML = "";
+
+  const groups = {};
+  let matchCount = 0;
+
+  foods.forEach((f, idx) => {
+    if (query && !f.name.toLowerCase().includes(query) && !(f.cat || "").toLowerCase().includes(query)) {
+      return;
+    }
+    matchCount++;
+    const catName = f.cat || "Otros Platillos";
+    if (!groups[catName]) groups[catName] = [];
+    groups[catName].push({ ...f, idx });
+  });
+
+  document.getElementById("fCount").textContent = matchCount;
+
+  Object.keys(groups).forEach(cat => {
+    const optgroup = document.createElement("optgroup");
+    optgroup.label = cat;
+    groups[cat].forEach(item => {
+      const o = document.createElement("option");
+      o.value = item.idx;
+      o.textContent = `${item.name} (${item.cal} kcal · ${item.prot}g P)`;
+      optgroup.appendChild(o);
+    });
+    sel.appendChild(optgroup);
+  });
+
+  prevFood();
+}
+
+function prevFood() {
+  const f = foods[document.getElementById("fSel").value];
+  const q = parseFloat(document.getElementById("fQty").value) || 1;
+  const prevEl = document.getElementById("fPrev");
+  if (f) {
+    prevEl.textContent = `Aporte total: ${Math.round(f.cal*q)} kcal · ${(f.prot*q).toFixed(1)}g Prot · ${(f.carb*q).toFixed(0)}g Carbs · ${(f.fat*q).toFixed(0)}g Grasas`;
+  } else {
+    prevEl.textContent = "Sin coincidencias en la búsqueda.";
+  }
+}
+
+function addCatalogFood() {
+  const f = foods[document.getElementById("fSel").value];
+  if (!f) return toast("Selecciona un alimento válido");
+  const q = parseFloat(document.getElementById("fQty").value) || 1;
+  quickFood(f.name, Math.round(f.cal*q), +(f.prot*q).toFixed(1), +(f.carb*q).toFixed(1), +(f.fat*q).toFixed(1), q);
+}
+
+function quickFood(name, cal, prot, carb, fat, qty = 1) {
+  const d = document.getElementById("nDate").value;
+  if (!nutLogs[d]) nutLogs[d] = [];
+  const item = { name, qty, cal, prot, carb, fat };
+  nutLogs[d].push(item);
+  saveLocal();
+  renderNut();
+  updAI();
+  toast(`+${cal} kcal agregadas`);
+  enqueue({ type: "nutrition", date: d, payload: item });
+}
+
+function delFood(d, idx) {
+  nutLogs[d].splice(idx, 1);
+  saveLocal();
+  renderNut();
+  updAI();
+}
+
+function renderNut() {
+  const d = document.getElementById("nDate").value;
+  const list = nutLogs[d] || [];
+  const box = document.getElementById("fList");
+  box.innerHTML = list.length ? "" : `<div class="sub">Sin registros hoy.</div>`;
+  let c = 0, p = 0, cb = 0, f = 0;
+  list.forEach((it, i) => {
+    c += it.cal; p += it.prot; cb += it.carb || 0; f += it.fat || 0;
+    const r = document.createElement("div");
+    r.className = "item-row";
+    r.innerHTML = `<div><b>${it.name}</b> ${it.qty !== 1 ? `<span class="sub">x${it.qty}</span>` : ""} <div class="sub">${it.cal} kcal · ${it.prot}g Prot</div></div>
+      <button type="button" class="pill" onclick="delFood('${d}',${i})">Quitar</button>`;
+    box.appendChild(r);
+  });
+  document.getElementById("cNow").textContent = Math.round(c);
+  document.getElementById("pNow").textContent = p.toFixed(0) + "g";
+  document.getElementById("cbNow").textContent = cb.toFixed(0);
+  document.getElementById("fNow").textContent = f.toFixed(0);
+  document.getElementById("cBar").style.width = Math.min(100, Math.round((c/2700)*100)) + "%";
+  document.getElementById("pBar").style.width = Math.min(100, Math.round((p/140)*100)) + "%";
+  const diff = 2700 - Math.round(c);
+  document.getElementById("cRem").textContent = diff > 0 ? `Faltan ${diff} kcal` : `Superávit cumplido (+${Math.abs(diff)} kcal)`;
+}
+
+function createFood() {
+  const name = document.getElementById("nfName").value.trim();
+  const cal = parseFloat(document.getElementById("nfCal").value) || 0;
+  const prot = parseFloat(document.getElementById("nfProt").value) || 0;
+  if (!name || cal <= 0) return toast("Escribe nombre y calorías");
+  const rem = Math.max(0, cal - prot * 4);
+  foods.unshift({ cat: "Mis Platillos Personalizados", name, cal, prot, carb: Math.round(rem*0.55/4), fat: Math.round(rem*0.45/9) });
+  saveLocal();
+  renderFoodSel();
+  document.getElementById("nfName").value = "";
+  document.getElementById("nfCal").value = "";
+  document.getElementById("nfProt").value = "";
+  toast("Platillo guardado en tu catálogo");
+}
+
+// Peso Corporal
+function saveWeight() {
+  const date = document.getElementById("wDate").value;
+  const weight = parseFloat(document.getElementById("wVal").value);
+  if (!date || isNaN(weight)) return;
+  const idx = weights.findIndex(w => w.date === date);
+  if (idx >= 0) weights[idx].weight = weight;
+  else weights.push({ date, weight });
+  weights.sort((a, b) => a.date.localeCompare(b.date));
+  saveLocal();
+  renderWeight();
+  renderProgressAndRanks();
+  updAI();
+  toast("Peso registrado");
+  enqueue({ type: "weight", payload: { date, weight } });
+}
+
+function renderWeight() {
+  const last = weights[weights.length - 1] || { weight: 65 };
+  document.getElementById("wBadge").textContent = `${last.weight.toFixed(1)} kg`;
+  document.getElementById("topWeight").textContent = `Actual: ${last.weight.toFixed(1)} kg · Meta: 75.0 kg`;
+  document.getElementById("wBar").style.width = Math.max(4, Math.min(100, ((last.weight - 65) / 10) * 100)) + "%";
+  const box = document.getElementById("wList");
+  box.innerHTML = "";
+  [...weights].reverse().slice(0, 5).forEach(w => {
+    const d = (w.weight - 65).toFixed(1);
+    const r = document.createElement("div");
+    r.className = "item-row";
+    r.innerHTML = `<span class="sub">${w.date}</span><b>${w.weight.toFixed(1)} kg (${d >= 0 ? "+"+d : d} kg)</b>`;
+    box.appendChild(r);
+  });
+}
+
+// Motor de Progreso Temporal y 8 Rangos con Iconos SVG
+function evaluateExerciseRank(canonName, weightKg, bw) {
+  const baseGold65 = GOLD_AT_65KG[canonName] || 40;
+  const goldForUser = +(baseGold65 * (bw / 65)).toFixed(1);
+
+  let currentTierIdx = 0;
+  for (let i = 0; i < RANK_TIERS.length; i++) {
+    if (weightKg >= goldForUser * RANK_TIERS[i].mult) {
+      currentTierIdx = i;
+    }
+  }
+  const currentTier = RANK_TIERS[currentTierIdx];
+  const nextTier = RANK_TIERS[currentTierIdx + 1] || null;
+
+  let pctNext = 100;
+  let missingKg = 0;
+  if (nextTier) {
+    const prevThreshold = currentTierIdx === 0 ? 0 : goldForUser * RANK_TIERS[currentTierIdx].mult;
+    const nextThreshold = goldForUser * nextTier.mult;
+    pctNext = Math.max(5, Math.min(100, Math.round(((weightKg - prevThreshold) / (nextThreshold - prevThreshold)) * 100)));
+    missingKg = Math.max(0, +(nextThreshold - weightKg).toFixed(1));
+  }
+
+  return { currentTier, currentTierIdx, nextTier, pctNext, missingKg, goldForUser };
+}
+
+function renderRankShowcase() {
+  const strip = document.getElementById("rankLegendStrip");
+  if (!strip) return;
+  strip.innerHTML = RANK_TIERS.map(t => `
+    <div class="rank-showcase-item" style="border-color:${t.color}44; background:${t.bg};">
+      ${getRankSVG(t.name, t.color, 20)}
+      <span style="color:${t.color};">${t.name}</span>
+    </div>
+  `).join("");
+}
+
+function renderProgressAndRanks() {
+  renderRankShowcase();
+
+  const bw = (weights[weights.length - 1] || { weight: 65 }).weight;
+  document.getElementById("rankWeightNote").textContent =
+    `Ajustado a tu peso (${bw.toFixed(1)} kg) · Doble polea (2:1) calibrada en Hombro y Tríceps`;
+
+  const box = document.getElementById("strengthRanksList");
+  if (!workouts.length) {
+    box.innerHTML = `<div class="sub">Descargando historial desde Google Sheets...</div>`;
+    return;
+  }
+
+  const sortedW = sanitizeWorkoutsList(workouts);
+  const firstDateStr = sortedW[0]?.date || "2026-08-02";
+  const firstDate = new Date(firstDateStr + "T00:00:00");
+  const now = new Date();
+  const daysElapsed = Math.max(1, Math.floor((now - firstDate) / (1000 * 60 * 60 * 24)));
+  const weeksElapsed = (daysElapsed / 7).toFixed(1);
+
+  document.getElementById("statDays").textContent = daysElapsed;
+  document.getElementById("statSessions").textContent = sortedW.length;
+  document.getElementById("timeStartLbl").textContent = `Día 1: ${firstDateStr}`;
+  document.getElementById("timeWeeksLbl").textContent = `${weeksElapsed} semanas de disciplina`;
+  document.getElementById("timeSubtitle").textContent = `Progreso acumulado durante ${daysElapsed} días desde tu inicio`;
+  document.getElementById("timeBar").style.width = Math.min(100, Math.round((daysElapsed / 180) * 100)) + "%";
+
+  const exMap = {};
+  sortedW.forEach(s => {
+    const validDate = s.date || firstDateStr;
+    s.exercises.forEach(e => {
+      const canon = canonicalExerciseName(e.name);
+      if (!canon || canon === "__EXCLUIDO__") return;
+
+      let kg = toKg(e.weight, e.unit);
+      if (kg <= 0) return;
+
+      let extraNote = "";
+      if (canon === "Jalón de tríceps unilateral en polea") {
+        kg = normalizeTricepsUnilateralKg(canon, kg);
+        extraNote = " · Doble polea 2:1 (Unilateral)";
+      } else if (canon === "Levantamiento horizontal hombros unilateral en polea") {
+        extraNote = " · Doble polea 2:1 (Unilateral)";
+      }
+
+      if (!exMap[canon]) {
+        exMap[canon] = { name: canon, firstKg: kg, firstDate: validDate, bestKg: kg, extraNote };
+      } else {
+        if (kg > exMap[canon].bestKg) exMap[canon].bestKg = kg;
+      }
+    });
+  });
+
+  const officialOrder = [...TEMPLATES.Superior.map(t => t[0]), ...TEMPLATES.Inferior.map(t => t[0])];
+  const exArray = officialOrder.map(name => exMap[name]).filter(Boolean);
+
+  let sumPctGain = 0;
+  let sumTierIdx = 0;
+  box.innerHTML = "";
+
+  exArray.forEach(item => {
+    const gainKg = +(item.bestKg - item.firstKg).toFixed(1);
+    const gainPct = item.firstKg > 0 ? Math.round(((item.bestKg - item.firstKg) / item.firstKg) * 100) : 0;
+    sumPctGain += Math.max(0, gainPct);
+
+    const rk = evaluateExerciseRank(item.name, item.bestKg, bw);
+    sumTierIdx += rk.currentTierIdx;
+
+    const tiersHTML = RANK_TIERS.map((t, idx) => {
+      const targetKg = Math.round(rk.goldForUser * t.mult);
+      return `<div class="tier-chip ${idx === rk.currentTierIdx ? 'current' : ''}">
+        ${getRankSVG(t.name, t.color, 12)}
+        <span style="color:${t.color}; font-weight:700;">${t.name.slice(0,4)}</span> ${targetKg}k
+      </div>`;
+    }).join("");
+
+    const card = document.createElement("div");
+    card.className = "rank-card";
+    card.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:6px;">
+        <div class="rank-header-left">
+          <div class="rank-icon-box" style="background:${rk.currentTier.bg}; border:1px solid ${rk.currentTier.color};">
+            ${getRankSVG(rk.currentTier.name, rk.currentTier.color, 24)}
+          </div>
+          <div>
+            <div style="font-size:0.88rem; font-weight:700;">${item.name}</div>
+            <div class="sub">Día 1 (${item.firstDate}): ${item.firstKg} kg → Récord: <b style="color:var(--text);">${item.bestKg} kg</b> (${gainKg >= 0 ? '+'+gainKg : gainKg} kg / +${Math.max(0, gainPct)}%)${item.extraNote || ""}</div>
+          </div>
+        </div>
+        <span class="rank-badge" style="color:${rk.currentTier.color}; background:${rk.currentTier.bg}; border:1px solid ${rk.currentTier.color};">
+          ${getRankSVG(rk.currentTier.name, rk.currentTier.color, 14)}
+          ${rk.currentTier.name}
+        </span>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; font-size:0.72rem; color:var(--muted); margin-top:6px;">
+        <span>Avance a ${rk.nextTier ? rk.nextTier.name : 'Nivel Máximo'}</span>
+        <span>${rk.nextTier ? `Faltan ${rk.missingKg} kg en placas (${rk.pctNext}%)` : '¡Nivel Leyenda Alcanzado!'}</span>
+      </div>
+      <div class="bar-bg"><div class="bar-fg" style="width:${rk.pctNext}%; background:${rk.currentTier.color};"></div></div>
+
+      <div class="tier-scale">${tiersHTML}</div>
+    `;
+    box.appendChild(card);
+  });
+
+  const avgGain = exArray.length ? Math.round(sumPctGain / exArray.length) : 0;
+  const avgTier = exArray.length ? Math.round(sumTierIdx / exArray.length) : 2;
+  const globalTier = RANK_TIERS[Math.min(RANK_TIERS.length - 1, avgTier)];
+
+  document.getElementById("statGainPct").textContent = `+${avgGain}%`;
+  const badge = document.getElementById("overallRankBadge");
+  badge.innerHTML = `${getRankSVG(globalTier.name, globalTier.color, 15)} Rango Global: ${globalTier.name}`;
+  badge.style.color = globalTier.color;
+  badge.style.background = globalTier.bg;
+  badge.style.border = `1px solid ${globalTier.color}`;
+}
+
+function renderHist() {
+  const flt = document.getElementById("hFilter").value;
+  const box = document.getElementById("hList");
+  if (!workouts.length) {
+    box.innerHTML = `<div class="sub">Descargando historial desde tu Google Sheet...</div>`;
+    return;
+  }
+  box.innerHTML = "";
+  [...workouts].reverse().forEach(s => {
+    if (flt !== "Todos" && s.split !== flt) return;
+    const activeExercises = s.exercises.filter(e => canonicalExerciseName(e.name) !== "__EXCLUIDO__");
+    if (!activeExercises.length) return;
+    const d = document.createElement("div");
+    d.style.cssText = "border:1px solid var(--border); background:var(--input); border-radius:10px; padding:10px; margin-bottom:8px;";
+    d.innerHTML = `<div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:0.78rem;">
+      <b>${s.date} · ${s.split}</b><span class="sub">${s.sessionNotes || ""}</span></div>` +
+      activeExercises.map(e => `<div style="display:flex; justify-content:space-between; font-size:0.76rem; padding:3px 0; border-top:1px solid var(--border);">
+        <span>${canonicalExerciseName(e.name)}</span><span style="color:var(--muted); font-weight:600;">${e.weight}${e.unit} × ${cleanReps(e.reps)} ${e.status}</span></div>`).join("");
+    box.appendChild(d);
+  });
+}
+
+function updAI() {
+  document.getElementById("aiBox").value = JSON.stringify({
+    meta: "65kg a 75kg (2700 kcal, 140g P)",
+    pesoActual: weights[weights.length - 1],
+    totalSesiones: workouts.length,
+    ultimasSesiones: workouts.slice(-4),
+    nutricionReciente: Object.entries(nutLogs).slice(-4)
+  }, null, 2);
+}
+function copyAI() {
+  navigator.clipboard.writeText("Analiza mi progreso, mis rangos y sugiere ajustes de peso:\n" + document.getElementById("aiBox").value)
+    .then(() => toast("Resumen copiado"));
+}
+
+// Sincronización con Google Sheets
+function updateSyncBadge() {
+  const dot = document.getElementById("syncDot");
+  const txt = document.getElementById("syncTxt");
+  document.getElementById("qCnt").textContent = queue.length;
+  if (!sheetUrl) { dot.className = "dot"; txt.textContent = "Sin URL"; }
+  else if (queue.length > 0) { dot.className = "dot wait"; txt.textContent = `Cola (${queue.length})`; }
+  else { dot.className = "dot on"; txt.textContent = `Sheets (${workouts.length})`; }
+}
+
+async function saveUrl() {
+  sheetUrl = document.getElementById("sUrl").value.trim() || DEFAULT_SHEET_URL;
+  localStorage.setItem("gym_sheets_url_v1", sheetUrl);
+  updateSyncBadge();
+  await flushQueue();
+  await pullFromSheets();
+}
+
+async function pullFromSheets() {
+  if (!sheetUrl) return;
+  const msg = document.getElementById("sMsg");
+  if (msg) msg.textContent = "Descargando base histórica desde Google Sheets...";
+  try {
+    const res = await fetch(sheetUrl);
+    const data = await res.json();
+    if (data && data.ok) {
+      if (Array.isArray(data.workouts)) workouts = sanitizeWorkoutsList(data.workouts);
+      if (data.nutLogs && Object.keys(data.nutLogs).length) nutLogs = data.nutLogs;
+      if (Array.isArray(data.weights) && data.weights.length) weights = data.weights;
+      saveLocal();
+      renderExList();
+      renderNut();
+      renderWeight();
+      renderProgressAndRanks();
+      renderHist();
+      updAI();
+      if (msg) msg.textContent = `Conectado: ${workouts.length} sesiones sincronizadas desde Google Sheets.`;
+    }
+  } catch (err) {
+    if (msg) msg.textContent = "Modo offline activo: mostrando datos guardados en caché.";
+  }
+}
+
+function enqueue(item) {
+  queue.push(item);
+  saveLocal();
+  flushQueue();
+}
+
+async function flushQueue() {
+  if (!sheetUrl || !queue.length) return;
+  const pending = [];
+  for (const item of queue) {
+    try {
+      await fetch(sheetUrl, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(item)
+      });
+    } catch (e) {
+      pending.push(item);
+    }
+  }
+  queue = pending;
+  saveLocal();
+}
+
+function goTab(name, btn) {
+  document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+  document.querySelectorAll(".nav-b").forEach(b => b.classList.remove("active"));
+  document.getElementById("v-" + name).classList.add("active");
+  if (btn) btn.classList.add("active");
+  window.scrollTo(0, 0);
+}
+
+window.onload = () => {
+  const t = new Date().toISOString().split("T")[0];
+  document.getElementById("gDate").value = t;
+  document.getElementById("nDate").value = t;
+  document.getElementById("wDate").value = t;
+  if (!localStorage.getItem("gym_sheets_url_v1")) {
+    localStorage.setItem("gym_sheets_url_v1", DEFAULT_SHEET_URL);
+  }
+  sheetUrl = localStorage.getItem("gym_sheets_url_v1") || DEFAULT_SHEET_URL;
+  document.getElementById("sUrl").value = sheetUrl;
+
+  renderExList();
+  renderFoodSel();
+  renderNut();
+  renderWeight();
+  renderProgressAndRanks();
+  renderHist();
+  updAI();
+  updateSyncBadge();
+  pullFromSheets();
+};
+</script>
+</body>
+</html>
