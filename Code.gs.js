@@ -58,11 +58,35 @@ function doPost(e) {
   }
 }
 
+function parseCalendarDate(raw) {
+  var text = String(raw == null ? "" : raw).trim().toLowerCase();
+  var parts = text.match(/^(\d{4})-(\d{2})-(\d{2})(?:$|[t\s_])/);
+  var year, month, day;
+  if (parts) { year = +parts[1]; month = +parts[2]; day = +parts[3]; }
+  else {
+    parts = text.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})(?:$|[\s_])/);
+    if (parts) { day = +parts[1]; month = +parts[2]; year = +parts[3]; }
+    else {
+      var months = {enero:1,febrero:2,marzo:3,abril:4,mayo:5,junio:6,julio:7,agosto:8,septiembre:9,setiembre:9,octubre:10,noviembre:11,diciembre:12,jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+      parts = text.match(/(\d{1,2})\s+de\s+([a-z]+)(?:\s+de\s+(\d{4}))?/);
+      if (parts && months[parts[2]]) { day = +parts[1]; month = months[parts[2]]; year = +(parts[3] || 2026); }
+      else {
+        parts = text.match(/^(?:[a-z]{3}\s+)?([a-z]{3})\s+(\d{1,2})\s+(\d{4})(?:$|\s)/);
+        if (!parts || !months[parts[1]]) return "";
+        month = months[parts[1]]; day = +parts[2]; year = +parts[3];
+      }
+    }
+  }
+  var date = new Date(Date.UTC(year, month - 1, day));
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return "";
+  return year + "-" + String(month).padStart(2, "0") + "-" + String(day).padStart(2, "0");
+}
+
 function formatDateCell(val) {
-  if (val instanceof Date) {
+  if (val instanceof Date && !isNaN(val.getTime())) {
     return Utilities.formatDate(val, Session.getScriptTimeZone(), "yyyy-MM-dd");
   }
-  return String(val).split("T")[0];
+  return parseCalendarDate(val);
 }
 
 function readWorkoutsFromSheet(sheet) {
@@ -72,13 +96,16 @@ function readWorkoutsFromSheet(sheet) {
 
   for (var i = 1; i < rows.length; i++) {
     var r = rows[i];
-    if (!r[1] || !r[3]) continue;
+    if (!r[3]) continue;
     var dateStr = formatDateCell(r[1]);
+    // Recuperación solo si la clave contiene una fecha válida; nunca inventar el día.
+    if (!dateStr) dateStr = parseCalendarDate(String(r[0] || "").split("_")[0]);
     var splitStr = String(r[2]);
-    var sKey = dateStr + "_" + splitStr;
+    var sKey = dateStr ? dateStr + "_" + splitStr : "sin_fecha_fila_" + (i + 1);
 
     if (!map[sKey]) {
       map[sKey] = { date: dateStr, split: splitStr, sessionNotes: "", exercises: [] };
+      if (!dateStr) map[sKey].dateIssue = { row: i + 1, rawDate: String(r[1] || ""), key: String(r[0] || "") };
       order.push(sKey);
     }
     map[sKey].exercises.push({
@@ -92,7 +119,7 @@ function readWorkoutsFromSheet(sheet) {
   }
 
   var list = order.map(function(k) { return map[k]; });
-  list.sort(function(a, b) { return a.date.localeCompare(b.date); });
+  list.sort(function(a, b) { return (a.date || "9999").localeCompare(b.date || "9999"); });
   return list;
 }
 

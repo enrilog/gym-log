@@ -133,20 +133,22 @@
         </div>
         <div>
           <label>RIR de Sesión</label>
-          <input type="text" id="gRir" value="RIR 2" placeholder="Ej. RIR 2" oninput="syncSessionRirRest()" />
+          <select id="gRir" aria-label="RIR de sesión" onchange="syncSessionRirRest()"></select>
         </div>
         <div>
           <label>Descanso Series</label>
-          <input type="text" id="gRest" value="2:00 min" placeholder="Ej. 2:00 min" oninput="syncSessionRirRest()" />
+          <select id="gRest" aria-label="Descanso de series" onchange="syncSessionRirRest()"></select>
         </div>
       </div>
       <div>
         <label>Contexto / Notas Generales</label>
-        <input type="text" id="gNotes" placeholder="Ej. Parar 2 antes del fallo, buena energía..." />
+        <select id="gNotes" aria-label="Contexto de sesión"><option value="">Sin notas</option><option>Buena energía</option><option>Energía baja</option><option>Sesión ligera</option><option>Molestia: cuidar carga</option></select>
       </div>
     </div>
     <div id="exList"></div>
     <div style="display:flex; flex-direction:column; gap:8px; margin-top:10px;">
+      <label for="extraExercise">Ejercicio adicional</label>
+      <select id="extraExercise"></select>
       <button type="button" class="btn btn-ghost" onclick="addExtraEx()">+ Añadir ejercicio</button>
       <button type="button" class="btn" onclick="saveWorkout()">Guardar Entrenamiento</button>
     </div>
@@ -174,18 +176,12 @@
     </div>
 
     <div class="card">
-      <div class="sec-h"><span class="sec-t">Accesos Rápidos (1 Toque)</span></div>
-      <div class="chip-grid">
-        <button type="button" class="chip" onclick="quickFood('Desayuno (4 huevos + 2 panes)',440,31,28,22)"><b>4 Huevos + 2 Panes</b><span>440 kcal · 31g Prot</span></button>
-        <button type="button" class="chip" onclick="quickFood('Desayuno (5 huevos + 2 panes)',515,37,29,27)"><b>5 Huevos + 2 Panes</b><span>515 kcal · 37g Prot</span></button>
-        <button type="button" class="chip" onclick="quickFood('Lentejas guisadas (1 tazón)',280,17,38,6)"><b>Tazón de Lentejas</b><span>280 kcal · 17g Prot</span></button>
-        <button type="button" class="chip" onclick="quickFood('Quesadilla con carne/pollo (1 pza)',260,15,19,13)"><b>Quesadilla c/ Carne</b><span>260 kcal · 15g Prot</span></button>
-        <button type="button" class="chip" onclick="quickFood('Plátano (1 pza)',105,1.3,27,0.4)"><b>Plátano (1 pza)</b><span>105 kcal · 27g C</span></button>
-        <button type="button" class="chip" onclick="quickFood('Atún en lata drenado',190,26,0,9)"><b>Atún en Lata</b><span>190 kcal · 26g Prot</span></button>
-      </div>
+      <div class="sec-h"><span class="sec-t">Tus 10 comidas más frecuentes</span></div>
+      <div class="sub" style="margin-bottom:8px;">Últimos 10 días, incluido hoy. Toca una comida y elige cuántas unidades comiste.</div>
+      <div id="quickFoods" class="chip-grid"></div>
     </div>
 
-    <div class="card">
+    <div class="card" id="foodCatalog">
       <div class="sec-h">
         <span class="sec-t">Catálogo de Comidas Mexicanas y Básicos</span>
       </div>
@@ -198,9 +194,10 @@
         <select id="fSel" onchange="prevFood()"></select>
       </div>
       <div class="row2" style="align-items:end;">
-        <div><label>Porciones / Piezas</label><input type="number" id="fQty" inputmode="decimal" value="1" step="0.25" min="0.25" oninput="prevFood()" /></div>
+        <div><label for="fQty">Cantidad de unidades</label><select id="fQty" onchange="prevFood()"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option></select></div>
         <button type="button" class="btn" onclick="addCatalogFood()">Registrar</button>
       </div>
+      <div class="sub" style="margin-top:8px;">Valores aproximados por unidad indicada: pieza, taza, vaso o porción con gramos. Huevo revuelto: incluye una pequeña cantidad de grasa de cocción.</div>
       <div id="fPrev" class="sub" style="margin-top:8px;"></div>
     </div>
 
@@ -211,10 +208,10 @@
 
     <div class="card">
       <div class="sec-h"><span class="sec-t">Añadir Otro Platillo Personalizado</span></div>
-      <div style="margin-bottom:8px;"><input type="text" id="nfName" placeholder="Nombre del platillo" /></div>
+      <div style="margin-bottom:8px;"><input type="text" id="nfName" placeholder="Nombre y unidad (ej. Tortilla de maíz, 1 pieza)" /></div>
       <div class="row2" style="margin-bottom:8px;">
-        <input type="number" id="nfCal" inputmode="numeric" placeholder="Calorías (kcal)" />
-        <input type="number" id="nfProt" inputmode="decimal" placeholder="Proteína (g)" />
+        <input type="number" id="nfCal" inputmode="numeric" placeholder="kcal por unidad" />
+        <input type="number" id="nfProt" inputmode="decimal" placeholder="Proteína por unidad (g)" />
       </div>
       <button type="button" class="btn btn-sec" onclick="createFood()">Guardar en Catálogo</button>
     </div>
@@ -248,6 +245,7 @@
         <span id="timeStartLbl">Inicio: --</span>
         <span id="timeWeeksLbl">Semanas activas: --</span>
       </div>
+      <div id="dateIssues" class="sub" role="status" style="margin-top:8px;"></div>
       <div class="bar-bg"><div id="timeBar" class="bar-fg" style="width:0%;"></div></div>
     </div>
 
@@ -276,23 +274,6 @@
       <div id="strengthRanksList"></div>
     </div>
 
-    <div class="card">
-      <div class="sec-h"><span class="sec-t">Resumen para IA</span></div>
-      <textarea id="aiBox" rows="4" readonly style="font-size:12px; font-family:monospace; margin-bottom:8px; color:var(--muted);"></textarea>
-      <button type="button" class="btn btn-sec" onclick="copyAI()">Copiar Resumen para IA</button>
-    </div>
-
-    <div class="card">
-      <div class="sec-h">
-        <span class="sec-t">Historial de Sesiones (Google Sheets)</span>
-        <select id="hFilter" style="width:auto; padding:5px 8px; font-size:13px;" onchange="renderHist()">
-          <option value="Todos">Todos</option>
-          <option value="Superior">Superior</option>
-          <option value="Inferior">Inferior</option>
-        </select>
-      </div>
-      <div id="hList"></div>
-    </div>
   </section>
 
   <!-- VISTA 4: DATOS Y SHEETS -->
@@ -508,25 +489,32 @@ const MONTHS_ES = {
   julio: "07", agosto: "08", septiembre: "09", setiembre: "09", octubre: "10", noviembre: "11", diciembre: "12"
 };
 
-// Interpreta fechas ISO, dd/mm/yyyy y textos en español sin año (ej. "26 de agosto" -> "2026-08-26")
+function parseCalendarDate(raw) {
+  var text = String(raw == null ? "" : raw).trim().toLowerCase();
+  var parts = text.match(/^(\d{4})-(\d{2})-(\d{2})(?:$|[t\s_])/);
+  var year, month, day;
+  if (parts) { year = +parts[1]; month = +parts[2]; day = +parts[3]; }
+  else {
+    parts = text.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})(?:$|[\s_])/);
+    if (parts) { day = +parts[1]; month = +parts[2]; year = +parts[3]; }
+    else {
+      var months = {enero:1,febrero:2,marzo:3,abril:4,mayo:5,junio:6,julio:7,agosto:8,septiembre:9,setiembre:9,octubre:10,noviembre:11,diciembre:12,jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+      parts = text.match(/(\d{1,2})\s+de\s+([a-z]+)(?:\s+de\s+(\d{4}))?/);
+      if (parts && months[parts[2]]) { day = +parts[1]; month = months[parts[2]]; year = +(parts[3] || 2026); }
+      else {
+        parts = text.match(/^(?:[a-z]{3}\s+)?([a-z]{3})\s+(\d{1,2})\s+(\d{4})(?:$|\s)/);
+        if (!parts || !months[parts[1]]) return "";
+        month = months[parts[1]]; day = +parts[2]; year = +parts[3];
+      }
+    }
+  }
+  var date = new Date(Date.UTC(year, month - 1, day));
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return "";
+  return year + "-" + String(month).padStart(2, "0") + "-" + String(day).padStart(2, "0");
+}
+
 function normalizeDate(raw) {
-  if (!raw) return "";
-  const s = String(raw).trim().toLowerCase();
-  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
-  const dmy = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
-  if (dmy) {
-    return `${dmy[3]}-${dmy[2].padStart(2, "0")}-${dmy[1].padStart(2, "0")}`;
-  }
-  const esMatch = s.match(/(\d{1,2})\s+de\s+([a-záéíóú]+)(?:\s+de\s+(\d{4}))?/);
-  if (esMatch && MONTHS_ES[esMatch[2]]) {
-    const yr = esMatch[3] || "2026";
-    return `${yr}-${MONTHS_ES[esMatch[2]]}-${esMatch[1].padStart(2, "0")}`;
-  }
-  const parsed = new Date(raw);
-  if (!isNaN(parsed.getTime())) {
-    return parsed.toISOString().split("T")[0];
-  }
-  return "";
+  return parseCalendarDate(raw);
 }
 
 function cleanReps(val) {
@@ -556,11 +544,11 @@ function normalizeTricepsUnilateralKg(canonName, kg) {
   return kg;
 }
 
-// Nunca descarta sesiones: si una fila tenía fecha vacía en Sheets, conserva la sesión con la fecha base
+// Conserva registros sin fecha, sin convertirlos en sesiones de un día inventado.
 function sanitizeWorkoutsList(list) {
   if (!Array.isArray(list)) return [];
   const cleaned = list.map(s => {
-    const normDate = normalizeDate(s.date) || "2026-08-02";
+    const normDate = normalizeDate(s.date);
     return {
       ...s,
       date: normDate,
@@ -570,17 +558,61 @@ function sanitizeWorkoutsList(list) {
       }))
     };
   });
-  cleaned.sort((a, b) => a.date.localeCompare(b.date));
+  cleaned.sort((a, b) => (a.date || "9999").localeCompare(b.date || "9999"));
   return cleaned;
 }
 
+// Solo transforma el catálogo: los totales y cantidades históricos se conservan.
+function unitFood(item) {
+  let name = item.name;
+  let divisor = 1;
+  if (name === "Huevos revueltos con jamón o salchicha (2 huevos)") {
+    name = "Huevo revuelto con jamón o salchicha (1 huevo)";
+    divisor = 2;
+  } else if (name === "Huevos a la mexicana (2 huevos)") {
+    name = "Huevo a la mexicana (1 huevo)";
+    divisor = 2;
+  } else if (name === "Aguacate (1/2 pieza mediana)") {
+    name = "Aguacate (1 pieza mediana)";
+    divisor = 0.5;
+  } else {
+    const pack = name.match(/\((?:orden de )?(\d+) (pzas?|tacos|huevos)\)/);
+    if (pack && Number(pack[1]) > 1) {
+      divisor = Number(pack[1]);
+      name = name.replace(pack[0], "(1 pieza)");
+    }
+  }
+  const result = { ...item, name };
+  for (const field of ["cal", "prot", "carb", "fat"]) result[field] = +(Number(item[field] || 0) / divisor).toFixed(2);
+  return result;
+}
+function foodKey(name) {
+  const key = String(name).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+    .replace(/\([^)]*\)/g, "").replace(/\s+/g, " ").trim();
+  const aliases = { tortilla: "tortilla de maiz", tortillas: "tortilla de maiz", "tortillas de maiz": "tortilla de maiz", "huevos revueltos": "huevo revuelto", "huevo revuelto solo": "huevo revuelto" };
+  return aliases[key] || key;
+}
 function loadMergedCatalog() {
   const saved = JSON.parse(localStorage.getItem("gym_foods_v1")) || [];
-  const merged = [...INITIAL_FOODS];
-  saved.forEach(item => {
-    const exists = merged.some(m => m.name.toLowerCase() === item.name.toLowerCase());
-    if (!exists) {
-      merged.push({ cat: item.cat || "Mis Platillos Personalizados", ...item });
+  const basics = [
+    { name: "Huevo revuelto (1 huevo)", cal: 90, prot: 6.3, carb: 0.6, fat: 7 },
+    { name: "Huevo revuelto con jamón (1 huevo + 1 rebanada de jamón)", cal: 120, prot: 9, carb: 1, fat: 9 },
+    { name: "Huevo revuelto con salchicha (1 huevo + 1/2 salchicha)", cal: 140, prot: 8, carb: 2, fat: 11 },
+    { name: "Jamón de pavo (1 rebanada, 20 g)", cal: 22, prot: 3.5, carb: 1, fat: 0.5 },
+    { name: "Salchicha de pavo (1 pieza, 45 g)", cal: 90, prot: 5, carb: 2, fat: 7 },
+    { name: "Clara de huevo (1 pieza)", cal: 17, prot: 3.6, carb: 0.2, fat: 0 },
+    { name: "Pan blanco de caja (1 rebanada)", cal: 75, prot: 2.5, carb: 14, fat: 1 },
+    { name: "Queso panela (1 rebanada, 30 g)", cal: 80, prot: 6, carb: 1, fat: 6 },
+    { name: "Aceite para cocinar (1 cucharadita, 5 ml)", cal: 40, prot: 0, carb: 0, fat: 4.5 }
+  ].map(item => ({ cat: "Desayunos, Frutas y Básicos", ...item }));
+  const merged = [];
+  const seen = new Set();
+  [...INITIAL_FOODS, ...basics, ...saved].forEach(raw => {
+    const item = unitFood(raw);
+    const key = foodKey(item.name);
+    if (!seen.has(key)) {
+      seen.add(key);
+      merged.push({ cat: "Mis Platillos Personalizados", ...item });
     }
   });
   localStorage.setItem("gym_foods_v1", JSON.stringify(merged));
@@ -661,7 +693,27 @@ function syncSessionRirRest() {
 function renderExList() {
   const box = document.getElementById("exList");
   box.innerHTML = "";
+  document.getElementById("extraExercise").innerHTML = optionsHTML(TEMPLATES[curSplit].map(t => t[0]), "");
   TEMPLATES[curSplit].forEach(t => box.appendChild(makeExCard(t[0], t[1], t[2], t[3])));
+}
+
+const RIR_OPTIONS = Array.from({ length: 6 }, (_, i) => `RIR ${i}`);
+const REST_OPTIONS = Array.from({ length: 8 }, (_, i) => {
+  const seconds = (i + 1) * 30;
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")} min`;
+});
+function escapeOption(value) {
+  return String(value).replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+}
+function optionsHTML(values, selected) {
+  return values.map(value => `<option value="${escapeOption(value)}" ${String(value) === String(selected) ? 'selected' : ''}>${escapeOption(value)}</option>`).join("");
+}
+function renderRepSelectors(card) {
+  const previous = [...card.querySelectorAll(".i-rep")].map(el => el.value);
+  card.querySelector(".rep-selectors").innerHTML = Array.from({ length: Number(card.querySelector(".i-series").value) }, (_, i) => `
+    <div><label>Serie ${i + 1}</label><select class="i-rep" aria-label="Repeticiones de serie ${i + 1}">
+      <option value="">Sin registrar</option>${optionsHTML(Array.from({ length: 41 }, (_, n) => n), previous[i] ?? "")}
+    </select></div>`).join("");
 }
 
 function makeExCard(name, defU, setup, warn) {
@@ -669,26 +721,28 @@ function makeExCard(name, defU, setup, warn) {
   const adv = getAdvice(last);
   const w = last ? last.weight : 25;
   const u = last ? last.unit : defU;
-  const cleanLastReps = last ? cleanReps(last.reps) : "10, 8, 6";
+  const lastSeries = last ? cleanReps(last.reps).split(",").length : 3;
   const defRir = document.getElementById("gRir")?.value || "RIR 2";
   const defRest = document.getElementById("gRest")?.value || (curSplit === "Superior" ? "2:00 min" : "1:30 min");
 
   const div = document.createElement("div");
   div.className = "ex-card";
+  div.dataset.name = name;
   div.dataset.unit = u;
   div.dataset.status = "☑️";
   div.innerHTML = `
-    <input type="text" class="ex-name" value="${name}" />
+    <div class="ex-name">${escapeOption(name)}</div>
     <div class="tags">
       <span class="${adv.cls}">${adv.txt}</span>
       <span class="tag w-tag">${warmupTxt(w, u)}</span>
+      ${setup.includes("2:1") ? `<span class="tag">Doble polea (2:1)</span>` : ""}
       ${warn ? `<span class="tag err">${warn}</span>` : ""}
     </div>
     <div class="row2" style="margin-bottom:8px;">
       <div>
         <label>Peso en Placas / Efectivo</label>
         <div class="w-box">
-          <input type="number" class="i-w" inputmode="decimal" step="0.5" value="${w}" oninput="updWarm(this)" />
+          <select class="i-w" aria-label="Peso" onchange="updWarm(this)">${optionsHTML([...new Set([Number(w), ...Array.from({ length: 1001 }, (_, i) => i / 2)])].sort((a,b) => a-b), w)}</select>
           <div class="u-tog">
             <button type="button" class="u-btn ${u==='kg'?'active':''}" onclick="setU(this,'kg')">kg</button>
             <button type="button" class="u-btn ${u==='lbs'?'active':''}" onclick="setU(this,'lbs')">lbs</button>
@@ -696,22 +750,27 @@ function makeExCard(name, defU, setup, warn) {
         </div>
       </div>
       <div>
-        <label>Series / Reps</label>
-        <input type="text" class="i-r" placeholder="${cleanLastReps}" />
+        <label>Series</label>
+        <select class="i-series" aria-label="Número de series" onchange="renderRepSelectors(this.closest('.ex-card'))">${optionsHTML([1, 2, 3, 4, 5, 6], Math.min(6, lastSeries))}</select>
       </div>
     </div>
-    <div class="row3" style="margin-bottom:6px;">
+    <div class="rep-selectors row2" style="margin-bottom:10px;"></div>
+    <div class="row2" style="margin-bottom:6px;">
       <div>
         <label>RIR</label>
-        <input type="text" class="i-rir" value="${defRir}" style="font-size:13px; padding:7px 8px;" />
+        <select class="i-rir" aria-label="RIR del ejercicio">${optionsHTML(RIR_OPTIONS, defRir)}</select>
       </div>
       <div>
         <label>Descanso</label>
-        <input type="text" class="i-rest" value="${defRest}" style="font-size:13px; padding:7px 8px;" />
+        <select class="i-rest" aria-label="Descanso del ejercicio">${optionsHTML(REST_OPTIONS, defRest)}</select>
       </div>
       <div>
-        <label>Modalidad / Setup</label>
-        <input type="text" class="i-n" value="${setup}" placeholder="Setup" style="font-size:13px; padding:7px 8px;" />
+        <label>Modalidad</label>
+        <select class="i-mode" aria-label="Modalidad">${optionsHTML([setup.split(" · ")[0] || "En máquina", "Unilateral", "Bilateral 2 manos", "Unilateral en máquina (1 brazo)", "Unilateral parado en máquina"].filter((v,i,a) => a.indexOf(v) === i), setup.split(" · ")[0] || "En máquina")}</select>
+      </div>
+      <div>
+        <label>Set Up</label>
+        <select class="i-setup" aria-label="Set Up">${optionsHTML([...new Set([setup, "Sin ajuste", "Agarre neutro", "Agarre abierto", "Agarre cerrado", ...Array.from({length: 15}, (_,i) => `Nivel ${i+1}`), ...Array.from({length: 15}, (_,i) => `${i+1} de distancia`)])].filter(Boolean), setup || "Sin ajuste")}</select>
       </div>
     </div>
     <div class="st-row">
@@ -721,6 +780,7 @@ function makeExCard(name, defU, setup, warn) {
       <button type="button" class="st-btn" onclick="setSt(this,'❎')">Molestia</button>
     </div>
   `;
+  renderRepSelectors(div);
   return div;
 }
 
@@ -742,7 +802,9 @@ function setSt(btn, st) {
   btn.classList.add("active");
 }
 function addExtraEx() {
-  document.getElementById("exList").appendChild(makeExCard("Ejercicio Extra", "kg", "", ""));
+  const picker = document.getElementById("extraExercise");
+  const template = TEMPLATES[curSplit].find(t => t[0] === picker.value);
+  if (template) document.getElementById("exList").appendChild(makeExCard(...template));
 }
 
 function saveWorkout() {
@@ -754,15 +816,20 @@ function saveWorkout() {
 
   const exercises = [];
   document.querySelectorAll("#exList .ex-card").forEach(c => {
-    const reps = c.querySelector(".i-r").value.trim();
-    if (!reps) return;
+    const selections = [...c.querySelectorAll(".i-rep")].map(el => el.value);
+    if (selections.every(value => value === "")) return;
+    if (selections.some(value => value === "")) {
+      exercises.push(null);
+      return;
+    }
+    const reps = selections.join(", ");
     const exRir = c.querySelector(".i-rir").value.trim();
     const exRest = c.querySelector(".i-rest").value.trim();
-    const exSetup = c.querySelector(".i-n").value.trim();
+    const exSetup = [c.querySelector(".i-mode").value, c.querySelector(".i-setup").value].join(" · ");
     const combinedExNotes = [exSetup, exRir, exRest].filter(Boolean).join(" | ");
 
     exercises.push({
-      name: c.querySelector(".ex-name").value.trim(),
+      name: c.dataset.name,
       weight: parseFloat(c.querySelector(".i-w").value) || 0,
       unit: c.dataset.unit,
       reps: cleanReps(reps),
@@ -770,6 +837,7 @@ function saveWorkout() {
       notes: combinedExNotes
     });
   });
+  if (exercises.includes(null)) return toast("Selecciona las repeticiones de cada serie o reduce el número de series");
   if (!exercises.length) return toast("Ingresa repeticiones en al menos 1 ejercicio");
   const s = { date, split: curSplit, sessionNotes, exercises };
   workouts.push(s);
@@ -777,13 +845,68 @@ function saveWorkout() {
   saveLocal();
   renderExList();
   renderProgressAndRanks();
-  renderHist();
-  updAI();
+
+
   toast("Sesión guardada");
   enqueue({ type: "workout", payload: s });
 }
 
 // Nutrición
+function frequentFoods(today = localToday()) {
+  const start = new Date(today + "T12:00:00");
+  start.setDate(start.getDate() - 9);
+  const first = `${start.getFullYear()}-${String(start.getMonth()+1).padStart(2,"0")}-${String(start.getDate()).padStart(2,"0")}`;
+  const counts = new Map();
+  Object.entries(nutLogs).forEach(([date, rows]) => {
+    if (date < first || date > today) return;
+    rows.forEach(item => {
+      const normalized = unitFood(item);
+      const key = foodKey(normalized.name);
+      const current = counts.get(key) || { key, count: 0, lastDate: date, item: normalized };
+      current.count++;
+      if (date >= current.lastDate) {
+        current.lastDate = date;
+        current.item = normalized;
+      }
+      counts.set(key, current);
+    });
+  });
+  return [...counts.values()].sort((a,b) => b.count - a.count || b.lastDate.localeCompare(a.lastDate) || a.key.localeCompare(b.key)).slice(0,10);
+}
+function renderQuickFoods() {
+  const box = document.getElementById("quickFoods");
+  box.innerHTML = "";
+  const frequent = frequentFoods();
+  if (!frequent.length) {
+    box.innerHTML = '<div class="sub">Registra comidas en el catálogo para ver aquí tus favoritas.</div>';
+    return;
+  }
+  frequent.forEach(entry => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "chip";
+    const food = foods.find(item => foodKey(item.name) === entry.key);
+    button.innerHTML = `<b>${escapeOption(food?.name || entry.item.name)}</b><span>${entry.count} registros en 10 días</span>`;
+    button.onclick = () => {
+      let index = foods.findIndex(item => foodKey(item.name) === entry.key);
+      if (index < 0) {
+        const qty = Number(entry.item.qty) || 1;
+        foods.push({ cat: "Del historial", name: entry.item.name,
+          ...Object.fromEntries(["cal","prot","carb","fat"].map(k => [k, +(entry.item[k] / qty).toFixed(2)])) });
+        index = foods.length - 1;
+        saveLocal();
+      }
+      document.getElementById("fSearch").value = "";
+      renderFoodSel();
+      document.getElementById("fSel").value = index;
+      document.getElementById("fQty").value = "1";
+      prevFood();
+      document.getElementById("foodCatalog").scrollIntoView({behavior:"smooth", block:"start"});
+    };
+    box.appendChild(button);
+  });
+}
+
 function renderFoodSel() {
   const sel = document.getElementById("fSel");
   const query = (document.getElementById("fSearch")?.value || "").toLowerCase().trim();
@@ -844,7 +967,7 @@ function quickFood(name, cal, prot, carb, fat, qty = 1) {
   nutLogs[d].push(item);
   saveLocal();
   renderNut();
-  updAI();
+
   toast(`+${cal} kcal agregadas`);
   enqueue({ type: "nutrition", date: d, payload: item });
 }
@@ -853,10 +976,11 @@ function delFood(d, idx) {
   nutLogs[d].splice(idx, 1);
   saveLocal();
   renderNut();
-  updAI();
+
 }
 
 function renderNut() {
+  renderQuickFoods();
   const d = document.getElementById("nDate").value;
   const list = nutLogs[d] || [];
   const box = document.getElementById("fList");
@@ -885,6 +1009,7 @@ function createFood() {
   const cal = parseFloat(document.getElementById("nfCal").value) || 0;
   const prot = parseFloat(document.getElementById("nfProt").value) || 0;
   if (!name || cal <= 0) return toast("Escribe nombre y calorías");
+  if (foods.some(item => foodKey(item.name) === foodKey(name))) return toast("Este alimento ya existe en el catálogo; búscalo por su nombre");
   const rem = Math.max(0, cal - prot * 4);
   foods.unshift({ cat: "Mis Platillos Personalizados", name, cal, prot, carb: Math.round(rem*0.55/4), fat: Math.round(rem*0.45/9) });
   saveLocal();
@@ -907,7 +1032,7 @@ function saveWeight() {
   saveLocal();
   renderWeight();
   renderProgressAndRanks();
-  updAI();
+
   toast("Peso registrado");
   enqueue({ type: "weight", payload: { date, weight } });
 }
@@ -978,8 +1103,24 @@ function renderProgressAndRanks() {
     return;
   }
 
-  const sortedW = sanitizeWorkoutsList(workouts);
-  const firstDateStr = sortedW[0]?.date || "2026-08-02";
+  const allRecords = sanitizeWorkoutsList(workouts);
+  const sortedW = allRecords.filter(session => session.date);
+  const undatedExercises = allRecords.filter(session => !session.date).reduce((total, session) => total + session.exercises.length, 0);
+  document.getElementById("dateIssues").textContent = undatedExercises
+    ? `${undatedExercises} registros de ejercicios sin fecha válida están pendientes de revisión. No se incluyen en sesiones ni progreso temporal.` : "";
+  document.getElementById("statSessions").textContent = sortedW.length;
+  if (!sortedW.length) {
+    document.getElementById("statDays").textContent = "0";
+    document.getElementById("statGainPct").textContent = "—";
+    document.getElementById("timeStartLbl").textContent = "Inicio: pendiente de fecha";
+    document.getElementById("timeWeeksLbl").textContent = "";
+    document.getElementById("timeSubtitle").textContent = "Sin sesiones con fecha válida";
+    document.getElementById("timeBar").style.width = "0%";
+    document.getElementById("overallRankBadge").textContent = "Pendiente";
+    box.innerHTML = '<div class="sub">Corrige las fechas en Sheets para calcular el progreso.</div>';
+    return;
+  }
+  const firstDateStr = sortedW[0].date;
   const firstDate = new Date(firstDateStr + "T00:00:00");
   const now = new Date();
   const daysElapsed = Math.max(1, Math.floor((now - firstDate) / (1000 * 60 * 60 * 24)));
@@ -1083,42 +1224,6 @@ function renderProgressAndRanks() {
   badge.style.border = `1px solid ${globalTier.color}`;
 }
 
-function renderHist() {
-  const flt = document.getElementById("hFilter").value;
-  const box = document.getElementById("hList");
-  if (!workouts.length) {
-    box.innerHTML = `<div class="sub">Descargando historial desde tu Google Sheet...</div>`;
-    return;
-  }
-  box.innerHTML = "";
-  [...workouts].reverse().forEach(s => {
-    if (flt !== "Todos" && s.split !== flt) return;
-    const activeExercises = s.exercises.filter(e => canonicalExerciseName(e.name) !== "__EXCLUIDO__");
-    if (!activeExercises.length) return;
-    const d = document.createElement("div");
-    d.style.cssText = "border:1px solid var(--border); background:var(--input); border-radius:10px; padding:10px; margin-bottom:8px;";
-    d.innerHTML = `<div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:0.78rem;">
-      <b>${s.date} · ${s.split}</b><span class="sub">${s.sessionNotes || ""}</span></div>` +
-      activeExercises.map(e => `<div style="display:flex; justify-content:space-between; font-size:0.76rem; padding:3px 0; border-top:1px solid var(--border);">
-        <span>${canonicalExerciseName(e.name)}</span><span style="color:var(--muted); font-weight:600;">${e.weight}${e.unit} × ${cleanReps(e.reps)} ${e.status}</span></div>`).join("");
-    box.appendChild(d);
-  });
-}
-
-function updAI() {
-  document.getElementById("aiBox").value = JSON.stringify({
-    meta: "65kg a 75kg (2700 kcal, 140g P)",
-    pesoActual: weights[weights.length - 1],
-    totalSesiones: workouts.length,
-    ultimasSesiones: workouts.slice(-4),
-    nutricionReciente: Object.entries(nutLogs).slice(-4)
-  }, null, 2);
-}
-function copyAI() {
-  navigator.clipboard.writeText("Analiza mi progreso, mis rangos y sugiere ajustes de peso:\n" + document.getElementById("aiBox").value)
-    .then(() => toast("Resumen copiado"));
-}
-
 // Sincronización con Google Sheets
 function updateSyncBadge() {
   const dot = document.getElementById("syncDot");
@@ -1137,6 +1242,29 @@ async function saveUrl() {
   await pullFromSheets();
 }
 
+// Compara cantidades de registros iguales: dos comidas idénticas pueden ser legítimas.
+// Sheets puede devolver una copia atrasada; nunca debe borrar la copia del celular.
+function mergeNutritionLogs(local, remote) {
+  const merged = {};
+  const key = item => JSON.stringify([
+    String(item.name), Number(item.qty), Number(item.cal),
+    Number(item.prot), Number(item.carb || 0), Number(item.fat || 0)
+  ]);
+  for (const date of new Set([...Object.keys(local), ...Object.keys(remote)])) {
+    const rows = [...(remote[date] || [])];
+    const available = new Map();
+    rows.forEach(item => available.set(key(item), (available.get(key(item)) || 0) + 1));
+    for (const item of local[date] || []) {
+      const k = key(item);
+      const count = available.get(k) || 0;
+      if (count) available.set(k, count - 1);
+      else rows.push(item);
+    }
+    merged[date] = rows;
+  }
+  return merged;
+}
+
 async function pullFromSheets() {
   if (!sheetUrl) return;
   const msg = document.getElementById("sMsg");
@@ -1146,15 +1274,15 @@ async function pullFromSheets() {
     const data = await res.json();
     if (data && data.ok) {
       if (Array.isArray(data.workouts)) workouts = sanitizeWorkoutsList(data.workouts);
-      if (data.nutLogs && Object.keys(data.nutLogs).length) nutLogs = data.nutLogs;
+      if (data.nutLogs) nutLogs = mergeNutritionLogs(nutLogs, data.nutLogs);
       if (Array.isArray(data.weights) && data.weights.length) weights = data.weights;
       saveLocal();
       renderExList();
       renderNut();
       renderWeight();
       renderProgressAndRanks();
-      renderHist();
-      updAI();
+
+
       if (msg) msg.textContent = `Conectado: ${workouts.length} sesiones sincronizadas desde Google Sheets.`;
     }
   } catch (err) {
@@ -1195,8 +1323,15 @@ function goTab(name, btn) {
   window.scrollTo(0, 0);
 }
 
+function localToday() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
 window.onload = () => {
-  const t = new Date().toISOString().split("T")[0];
+  document.getElementById("gRir").innerHTML = optionsHTML(RIR_OPTIONS, "RIR 2");
+  document.getElementById("gRest").innerHTML = optionsHTML(REST_OPTIONS, "2:00 min");
+  const t = localToday();
   document.getElementById("gDate").value = t;
   document.getElementById("nDate").value = t;
   document.getElementById("wDate").value = t;
@@ -1211,8 +1346,8 @@ window.onload = () => {
   renderNut();
   renderWeight();
   renderProgressAndRanks();
-  renderHist();
-  updAI();
+
+
   updateSyncBadge();
   pullFromSheets();
 };

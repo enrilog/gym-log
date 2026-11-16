@@ -1,0 +1,34 @@
+name: Actualizar Apps Script
+
+# Solo se ejecuta cuando se solicita; guardar código no publica cambios.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gym-apps-script-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: tools/clasp/package-lock.json
+      - name: Comprobar fechas y agrupación de sesiones
+        run: node tests/dates.cjs
+      - name: Comprobar preparación del despliegue
+        run: node tests/apps-script-deploy.cjs
+      - name: Instalar herramienta de Google
+        run: npm ci --prefix tools/clasp --no-audit --no-fund
+      - name: Actualizar implementación existente
+        env:
+          CLASP_AUTH_JSON: ${{ secrets.CLASP_AUTH_JSON }}
+        run: node scripts/deploy-apps-script.cjs

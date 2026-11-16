@@ -1,0 +1,5 @@
+{
+  "name": "gym-log-apps-script-tools",
+  "private": true,
+  "dependencies": { "@google/clasp": "3.4.1" }
+}
