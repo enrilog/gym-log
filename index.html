@@ -619,7 +619,7 @@ function configureFoodQuantity(reset = false) {
     selector.innerHTML = optionsHTML(values, mode === 'grams' ? 100 : 1);
     selector.dataset.mode = mode;
   }
-  document.getElementById('fQtyLabel').textContent = mode === 'grams' ? 'Peso de tu porción (g)' : mode === 'spoons' ? 'Cucharadas soperas' : 'Cantidad de unidades';
+  document.getElementById('fQtyLabel').textContent = mode === 'grams' ? 'Peso de tu porción (g)' : mode === 'spoons' ? 'Cucharadas soperas' : mode === 'pieces' ? 'Cantidad de piezas' : 'Cantidad de unidades';
 }
 function foodMultiplier(food) {
   const amount = Number(document.getElementById('fQty').value);
@@ -627,6 +627,7 @@ function foodMultiplier(food) {
 }
 function foodQuantityText(item) {
   if (/\(100 g\)$/.test(item.name)) return `${+(Number(item.qty) * 100).toFixed(1)} g`;
+  if (/\(1 pieza mediana\)$/.test(item.name)) return `${item.qty} pieza${Number(item.qty) === 1 ? '' : 's'}`;
   if (item.name.includes('cucharada sopera')) return `${item.qty} cucharada${Number(item.qty) === 1 ? '' : 's'} sopera${Number(item.qty) === 1 ? '' : 's'}`;
   return `${item.qty} unidad${Number(item.qty) === 1 ? '' : 'es'}`;
 }
@@ -670,7 +671,14 @@ function loadMergedCatalog() {
     {name:'Granada',cal:83,prot:1.7,carb:18.7,fat:1.2},
     {name:'Pitaya',cal:57,prot:0.4,carb:15.2,fat:0.1},
     {name:'Zapote mamey',cal:124,prot:1.5,carb:32.1,fat:0.5}
-  ].map(item=>({...item,name:item.name+' (100 g)',cat:'Frutas',quantityMode:'grams'}));
+  ].map(item => {
+    // Peso comestible aproximado de una pieza mediana; nunca modifica el historial.
+    const pieceGrams = {'Plátano':118,'Manzana':182,'Naranja':131,'Tuna':82,'Mango':165,'Pera':178,'Mandarina':88,'Guayaba':55,'Durazno':150,'Ciruela':66,'Kiwi':69,'Toronja':230,'Granada':282,'Pitaya':227,'Zapote mamey':300}[item.name];
+    if (!pieceGrams) return {...item,name:item.name+' (100 g)',cat:'Frutas',quantityMode:'grams'};
+    const fruit = {...item,name:item.name+' (1 pieza mediana)',cat:'Frutas',quantityMode:'pieces',pieceGrams};
+    for (const field of ['cal','prot','carb','fat']) fruit[field] = +(item[field] * pieceGrams / 100).toFixed(2);
+    return fruit;
+  });
   const merged = [];
   const seen = new Set();
   [...fruits, ...INITIAL_FOODS, ...basics, ...saved].forEach(raw => {
@@ -1018,7 +1026,7 @@ function prevFood() {
   const q = f ? foodMultiplier(f) : 0;
   const prevEl = document.getElementById("fPrev");
   if (f) {
-    prevEl.textContent = `${document.getElementById("fQty").value} ${f.quantityMode === "grams" ? "g" : f.quantityMode === "spoons" ? "cucharadas soperas" : "unidades"} · Aporte total: ${Math.round(f.cal*q)} kcal · ${(f.prot*q).toFixed(1)}g Prot · ${(f.carb*q).toFixed(0)}g Carbs · ${(f.fat*q).toFixed(0)}g Grasas`;
+    prevEl.textContent = `${document.getElementById("fQty").value} ${f.quantityMode === "grams" ? "g" : f.quantityMode === "spoons" ? "cucharadas soperas" : f.quantityMode === "pieces" ? "piezas" : "unidades"} · Aporte total: ${Math.round(f.cal*q)} kcal · ${(f.prot*q).toFixed(1)}g Prot · ${(f.carb*q).toFixed(0)}g Carbs · ${(f.fat*q).toFixed(0)}g Grasas${f.pieceGrams ? ` · Pieza mediana: aprox. ${f.pieceGrams} g comestibles` : ""}`;
   } else {
     prevEl.textContent = "Sin coincidencias en la búsqueda.";
   }
