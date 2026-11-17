@@ -176,13 +176,13 @@
       </div>
       <div style="margin-bottom:8px;">
         <label>Seleccionar de la Lista (<span id="fCount">0</span> opciones)</label>
-        <select id="fSel" onchange="prevFood()"></select>
+        <select id="fSel" onchange="configureFoodQuantity(true); prevFood()"></select>
       </div>
       <div class="row2" style="align-items:end;">
-        <div><label for="fQty">Cantidad de unidades</label><select id="fQty" onchange="prevFood()"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option></select></div>
+        <div><label for="fQty" id="fQtyLabel">Cantidad de unidades</label><select id="fQty" onchange="prevFood()"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option></select></div>
         <button type="button" class="btn" onclick="addCatalogFood()">Registrar</button>
       </div>
-      <div class="sub" style="margin-top:8px;">Valores aproximados por unidad indicada: pieza, taza, vaso o porción con gramos. Huevo revuelto: incluye una pequeña cantidad de grasa de cocción.</div>
+      <div class="sub" style="margin-top:8px;">Pesa la comida lista para comer, sin recipiente. Los nutrientes son estimaciones según la preparación; yogur y mantequilla de maní se miden en cucharadas soperas.</div>
       <div id="fPrev" class="sub" style="margin-top:8px;"></div>
     </div>
 
@@ -568,7 +568,67 @@ function foodKey(name) {
   const key = String(name).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
     .replace(/\([^)]*\)/g, "").replace(/\s+/g, " ").trim();
   const aliases = { tortilla: "tortilla de maiz", tortillas: "tortilla de maiz", "tortillas de maiz": "tortilla de maiz", "huevos revueltos": "huevo revuelto", "huevo revuelto solo": "huevo revuelto" };
-  return aliases[key] || key;
+  return aliases[key] || key.replace('sope o huarache', 'sope');
+}
+// Las masas de referencia son estimadas salvo arroz (150 g en el catálogo)
+// y sope (100 g por pieza, medido por el usuario). Solo cambia el catálogo.
+const WEIGHT_REFERENCES = {
+  "Lentejas guisadas caseras": 200, "Frijoles de la olla": 170,
+  "Frijoles refritos": 120, "Arroz cocido blanco o rojo": 150,
+  "Espagueti rojo o blanco a la crema": 140,
+  "Picadillo de res con verduras": 200, "Tinga de pollo o res": 200,
+  "Calabacitas a la mexicana con elote y queso": 180,
+  "Avena cocida con leche": 240, "Pozole blanco o rojo con carne": 400,
+  "Consomé de barbacoa con arroz y garbanzo": 250,
+  "Consomé de verduras con pollo deshebrado": 250,
+  "Consomé de verduras": 250, "Sopa aguada de fideo / pasta": 250,
+  "Barbacoa de borrego/res": 150, "Bistec de res a la plancha o encebollado": 150,
+  "Pechuga de pollo a la plancha": 150, "Carne de hamburguesa": 110,
+  "Cochinita pibil": 150, "Carnitas de cerdo": 150,
+  "Filete de pescado a la plancha o empanizado": 150,
+  "Queso Oaxaca / Panela / Manchego": 50, "Fruta deshidratada": 40,
+  "Sope o Huarache sencillo con frijoles y queso": 100,
+  "Sope o Huarache con bistec / pollo / cecina": 100
+};
+function portionFood(raw) {
+  if (raw.quantityMode) return raw;
+  const base = raw.name.replace(/\s*\([^)]*\)/g, '').trim();
+  let grams = WEIGHT_REFERENCES[base];
+  let name = raw.name;
+  let multiplier = grams ? 100 / grams : 1;
+  let quantityMode = grams ? 'grams' : 'units';
+  if (grams) name = base.replace('Sope o Huarache', 'Sope') + ' (100 g)';
+  if (base === 'Yogur griego natural') {
+    name = 'Yogur griego natural (1 cucharada sopera, aprox. 15 g)';
+    multiplier = 15 / 150;
+    quantityMode = 'spoons';
+  } else if (base === 'Mantequilla de maní natural') {
+    name = 'Mantequilla de maní natural (1 cucharada sopera, aprox. 16 g)';
+    quantityMode = 'spoons';
+  }
+  const item = {...raw, name, quantityMode};
+  for (const field of ['cal','prot','carb','fat']) item[field] = +(Number(raw[field] || 0) * multiplier).toFixed(2);
+  return item;
+}
+function configureFoodQuantity(reset = false) {
+  const food = foods[document.getElementById('fSel').value];
+  const selector = document.getElementById('fQty');
+  const mode = food?.quantityMode || 'units';
+  if (reset || selector.dataset.mode !== mode) {
+    const values = mode === 'grams' ? Array.from({length:2000},(_,i)=>i+1) : Array.from({length:30},(_,i)=>i+1);
+    selector.innerHTML = optionsHTML(values, mode === 'grams' ? 100 : 1);
+    selector.dataset.mode = mode;
+  }
+  document.getElementById('fQtyLabel').textContent = mode === 'grams' ? 'Peso de tu porción (g)' : mode === 'spoons' ? 'Cucharadas soperas' : 'Cantidad de unidades';
+}
+function foodMultiplier(food) {
+  const amount = Number(document.getElementById('fQty').value);
+  return food.quantityMode === 'grams' ? amount / 100 : amount;
+}
+function foodQuantityText(item) {
+  if (/\(100 g\)$/.test(item.name)) return `${+(Number(item.qty) * 100).toFixed(1)} g`;
+  if (item.name.includes('cucharada sopera')) return `${item.qty} cucharada${Number(item.qty) === 1 ? '' : 's'} sopera${Number(item.qty) === 1 ? '' : 's'}`;
+  return `${item.qty} unidad${Number(item.qty) === 1 ? '' : 'es'}`;
 }
 function loadMergedCatalog() {
   const saved = JSON.parse(localStorage.getItem("gym_foods_v1")) || [];
@@ -583,10 +643,38 @@ function loadMergedCatalog() {
     { name: "Queso panela (1 rebanada, 30 g)", cal: 80, prot: 6, carb: 1, fat: 6 },
     { name: "Aceite para cocinar (1 cucharadita, 5 ml)", cal: 40, prot: 0, carb: 0, fat: 4.5 }
   ].map(item => ({ cat: "Desayunos, Frutas y Básicos", ...item }));
+  const fruits = [
+    {name:'Plátano',cal:89,prot:1.1,carb:22.8,fat:0.3},
+    {name:'Manzana',cal:52,prot:0.3,carb:13.8,fat:0.2},
+    {name:'Uvas',cal:69,prot:0.7,carb:18.1,fat:0.2},
+    {name:'Naranja',cal:47,prot:0.9,carb:11.8,fat:0.1},
+    {name:'Tuna',cal:41,prot:0.7,carb:9.6,fat:0.5},
+    {name:'Fruta deshidratada',cal:337.5,prot:2.5,carb:80,fat:0.5},
+    {name:'Papaya',cal:43,prot:0.5,carb:10.8,fat:0.3},
+    {name:'Sandía',cal:30,prot:0.6,carb:7.6,fat:0.2},
+    {name:'Melón',cal:34,prot:0.8,carb:8.2,fat:0.2},
+    {name:'Piña',cal:50,prot:0.5,carb:13.1,fat:0.1},
+    {name:'Mango',cal:60,prot:0.8,carb:15,fat:0.4},
+    {name:'Fresa',cal:32,prot:0.7,carb:7.7,fat:0.3},
+    {name:'Pera',cal:57,prot:0.4,carb:15.2,fat:0.1},
+    {name:'Mandarina',cal:53,prot:0.8,carb:13.3,fat:0.3},
+    {name:'Guayaba',cal:68,prot:2.6,carb:14.3,fat:1},
+    {name:'Durazno',cal:39,prot:0.9,carb:9.5,fat:0.3},
+    {name:'Ciruela',cal:46,prot:0.7,carb:11.4,fat:0.3},
+    {name:'Kiwi',cal:61,prot:1.1,carb:14.7,fat:0.5},
+    {name:'Toronja',cal:42,prot:0.8,carb:10.7,fat:0.1},
+    {name:'Arándano azul',cal:57,prot:0.7,carb:14.5,fat:0.3},
+    {name:'Frambuesa',cal:52,prot:1.2,carb:11.9,fat:0.7},
+    {name:'Zarzamora',cal:43,prot:1.4,carb:9.6,fat:0.5},
+    {name:'Cereza',cal:63,prot:1.1,carb:16,fat:0.2},
+    {name:'Granada',cal:83,prot:1.7,carb:18.7,fat:1.2},
+    {name:'Pitaya',cal:57,prot:0.4,carb:15.2,fat:0.1},
+    {name:'Zapote mamey',cal:124,prot:1.5,carb:32.1,fat:0.5}
+  ].map(item=>({...item,name:item.name+' (100 g)',cat:'Frutas',quantityMode:'grams'}));
   const merged = [];
   const seen = new Set();
-  [...INITIAL_FOODS, ...basics, ...saved].forEach(raw => {
-    const item = unitFood(raw);
+  [...fruits, ...INITIAL_FOODS, ...basics, ...saved].forEach(raw => {
+    const item = portionFood(unitFood(raw));
     const key = foodKey(item.name);
     if (!seen.has(key)) {
       seen.add(key);
@@ -880,7 +968,7 @@ function renderQuickFoods() {
       document.getElementById("fSearch").value = "";
       renderFoodSel();
       document.getElementById("fSel").value = index;
-      document.getElementById("fQty").value = "1";
+      configureFoodQuantity(true);
       prevFood();
       document.getElementById("foodCatalog").scrollIntoView({behavior:"smooth", block:"start"});
     };
@@ -890,14 +978,15 @@ function renderQuickFoods() {
 
 function renderFoodSel() {
   const sel = document.getElementById("fSel");
-  const query = (document.getElementById("fSearch")?.value || "").toLowerCase().trim();
+  const searchKey = text => String(text).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const query = searchKey(document.getElementById("fSearch")?.value || "").trim();
   sel.innerHTML = "";
 
   const groups = {};
   let matchCount = 0;
 
   foods.forEach((f, idx) => {
-    if (query && !f.name.toLowerCase().includes(query) && !(f.cat || "").toLowerCase().includes(query)) {
+    if (query && !searchKey(f.name).includes(query) && !searchKey(f.cat || "").includes(query)) {
       return;
     }
     matchCount++;
@@ -920,15 +1009,16 @@ function renderFoodSel() {
     sel.appendChild(optgroup);
   });
 
+  configureFoodQuantity();
   prevFood();
 }
 
 function prevFood() {
   const f = foods[document.getElementById("fSel").value];
-  const q = parseFloat(document.getElementById("fQty").value) || 1;
+  const q = f ? foodMultiplier(f) : 0;
   const prevEl = document.getElementById("fPrev");
   if (f) {
-    prevEl.textContent = `Aporte total: ${Math.round(f.cal*q)} kcal · ${(f.prot*q).toFixed(1)}g Prot · ${(f.carb*q).toFixed(0)}g Carbs · ${(f.fat*q).toFixed(0)}g Grasas`;
+    prevEl.textContent = `${document.getElementById("fQty").value} ${f.quantityMode === "grams" ? "g" : f.quantityMode === "spoons" ? "cucharadas soperas" : "unidades"} · Aporte total: ${Math.round(f.cal*q)} kcal · ${(f.prot*q).toFixed(1)}g Prot · ${(f.carb*q).toFixed(0)}g Carbs · ${(f.fat*q).toFixed(0)}g Grasas`;
   } else {
     prevEl.textContent = "Sin coincidencias en la búsqueda.";
   }
@@ -937,7 +1027,8 @@ function prevFood() {
 function addCatalogFood() {
   const f = foods[document.getElementById("fSel").value];
   if (!f) return toast("Selecciona un alimento válido");
-  const q = parseFloat(document.getElementById("fQty").value) || 1;
+  const q = f ? foodMultiplier(f) : 0;
+  if (!Number.isFinite(q) || q <= 0) return toast("Selecciona una cantidad válida");
   quickFood(f.name, Math.round(f.cal*q), +(f.prot*q).toFixed(1), +(f.carb*q).toFixed(1), +(f.fat*q).toFixed(1), q);
 }
 
@@ -972,7 +1063,7 @@ function renderNut() {
     c += it.cal; p += it.prot; cb += it.carb || 0; f += it.fat || 0;
     const r = document.createElement("div");
     r.className = "item-row";
-    r.innerHTML = `<div><b>${it.name}</b> ${it.qty !== 1 ? `<span class="sub">x${it.qty}</span>` : ""} <div class="sub">${it.cal} kcal · ${it.prot}g Prot</div></div>
+    r.innerHTML = `<div><b>${it.name}</b> <span class="sub">${foodQuantityText(it)}</span> <div class="sub">${it.cal} kcal · ${it.prot}g Prot</div></div>
       <button type="button" class="pill" onclick="delFood('${d}',${i})">Quitar</button>`;
     box.appendChild(r);
   });

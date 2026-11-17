@@ -33,3 +33,9 @@ Aplicación web progresiva (PWA) de archivo único (`index.html`) diseñada para
 - Navegación principal: Hoy, Entrenar, Comidas y Progreso. La conexión a Sheets se encuentra en Ajustes, accesible desde el encabezado.
 - Ejercicios plegables con ajustes secundarios dentro de cada ejercicio; no reintroducir formularios completos en todas las tarjetas.
 - Todo el código web debe permanecer autocontenido en `index.html` para despliegue directo en GitHub Pages sin pasos de compilación (`build steps`).
+## 5. Porciones de nutrición acordadas
+- Comida comprada: preferir registro en gramos del alimento cocido/listo para comer, sin recipiente. Arroz y espagueti usan base de 100 g; el selector acepta el peso real de la balanza.
+- Medida aportada por el usuario: dos sopes ≈ 200 g, uno ≈ 100 g. La receta y los macros siguen siendo estimados.
+- Yogur y mantequilla de maní: cucharadas soperas (referencias iniciales de 15 g y 16 g, respectivamente).
+- Frutas: 26 opciones en la categoría Frutas, por 100 g de parte comestible. Incluyen plátano, manzana, uvas, naranja, tuna, fruta deshidratada, papaya, sandía, melón, piña, mango, fresa, pera, mandarina, guayaba, durazno, ciruela, kiwi, toronja, arándano azul, frambuesa, zarzamora, cereza, granada, pitaya y zapote mamey. Valores aproximados para fruta fresca sin azúcar añadida, salvo la entrada explícita de fruta deshidratada.
+- Pendiente continuo: incorporar los pesos de porciones que el usuario comparta semanalmente; no hay recordatorio programado. Actualizar referencias del catálogo sin recalcular registros históricos.
