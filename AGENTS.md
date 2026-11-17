@@ -1,7 +1,7 @@
 # AGENTS.md — Performance Log (Gym & Nutrition Tracker)
 
 ## 1. Descripción General del Proyecto
-Aplicación web progresiva (PWA) de archivo único (`index.html`) diseñada para uso móvil (iPhone/Safari) con estética Azul Marino Metálico (`#0B1324`), conectada en tiempo real a Google Sheets mediante Google Apps Script (`Code.gs`).
+Aplicación web progresiva (PWA) de archivo único (`index.html`) diseñada para uso móvil (iPhone/Safari) con diseño claro inspirado en Apple Salud (fondo `#f5f5f7`, tarjetas blancas y acento azul `#0071e3`), conectada en tiempo real a Google Sheets mediante Google Apps Script (`Code.gs`).
 
 - **Usuario:** Hombre de 25 años, peso inicial 65.0 kg, objetivo de superávit calórico limpio hacia **75.0 kg** (+0.25 a +0.35 kg/semana).
 - **Metas Nutricionales Diarias:** `2,700 kcal` | `140 g Proteína` | `335 g Carbohidratos` | `80 g Grasas`.
@@ -29,5 +29,7 @@ Aplicación web progresiva (PWA) de archivo único (`index.html`) diseñada para
 - **Sanitización de Datos:** Mantener `cleanReps()` para revertir strings de fecha GMT generados por Google Sheets y `normalizeDate()` para fechas en español.
 
 ## 4. Convenciones de Edición para Codex
-- Mantener el diseño móvil **mobile-first** (`font-size: 16px` en inputs para evitar auto-zoom en iOS) y la paleta **Azul Marino Metálico** (`--bg: #0B1324`).
+- Mantener el diseño móvil **mobile-first** (`font-size: 16px` en inputs para evitar auto-zoom en iOS) y la paleta clara aprobada por el usuario (`--bg: #f5f5f7`, acento `#0071e3`).
+- Navegación principal: Hoy, Entrenar, Comidas y Progreso. La conexión a Sheets se encuentra en Ajustes, accesible desde el encabezado.
+- Ejercicios plegables con ajustes secundarios dentro de cada ejercicio; no reintroducir formularios completos en todas las tarjetas.
 - Todo el código web debe permanecer autocontenido en `index.html` para despliegue directo en GitHub Pages sin pasos de compilación (`build steps`).
