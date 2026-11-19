@@ -46,6 +46,12 @@
     .ex-summary {display:flex;align-items:center;gap:12px;padding:20px;min-height:88px;} .ex-summary:after {content:'+';font-size:24px;font-weight:300;color:var(--muted);margin-left:auto;}
     .ex-card[open]>.ex-summary:after {content:'−';} .ex-title {min-width:0;flex:1;} .ex-name {font-weight:650;font-size:15px;line-height:1.4;margin-bottom:5px;} .ex-summary .sub {font-size:12px;}
     .ex-number {width:28px;height:28px;flex-shrink:0;border-radius:50%;background:#f0f3f8;display:grid;place-items:center;font-size:12px;color:var(--muted);}
+    .complete-btn {flex-shrink:0;border:1px solid var(--border);border-radius:50%;width:44px;height:44px;background:#fff;color:var(--muted);font-size:20px;}
+    .ex-card.completed .complete-btn {background:var(--ok-bg);border-color:#c8e5d3;color:var(--ok);}
+    .ex-card.completed .ex-number {background:var(--ok-bg);color:var(--ok);}
+    .warmup-row {margin:16px 0;padding:14px;background:var(--input);border-radius:12px;}
+    .warmup-row .row2 {margin-top:10px;}
+    .workout-progress {margin:0 4px 14px;}
     .exercise-body {padding:0 20px 20px;border-top:1px solid #f2f2f5;} .tags {display:flex;gap:6px;flex-wrap:wrap;margin:16px 0;}
     .tag {font-size:11px;color:var(--muted);border-radius:7px;background:var(--input);padding:5px 8px;} .tag.up {background:var(--ok-bg);color:var(--ok);} .tag.keep {background:var(--warn-bg);color:var(--warn);} .tag.err {background:var(--err-bg);color:var(--err);}
     .w-box {display:flex;gap:5px;} .w-box select {flex:1;width:0;} .u-tog {display:flex;border-radius:10px;background:var(--input);padding:3px;}
@@ -114,7 +120,7 @@
       <div class="row3 session-options" style="margin-bottom:16px;">
         <div>
           <label>Fecha</label>
-          <input type="date" id="gDate" aria-label="Fecha del entrenamiento" />
+          <input type="date" id="gDate" aria-label="Fecha del entrenamiento" onchange="renderExList()" />
         </div>
         <div>
           <label>RIR de Sesión</label>
@@ -130,7 +136,8 @@
         <select id="gNotes" aria-label="Contexto de sesión"><option value="">Sin notas</option><option>Buena energía</option><option>Energía baja</option><option>Sesión ligera</option><option>Molestia: cuidar carga</option></select>
       </div>
     </div>
-    <div id="exList"></div>
+    <p class="sub workout-progress" id="workoutProgress" role="status" aria-live="polite"></p>
+    <div id="exList" onchange="handleWorkoutChange(event)"></div>
     <div style="display:flex; flex-direction:column; gap:8px; margin-top:10px;">
       <label for="extraExercise">Ejercicio adicional</label>
       <select id="extraExercise"></select>
@@ -515,6 +522,23 @@ function toKg(w, u) {
   return u === "lbs" ? +(w / 2.20462).toFixed(1) : +Number(w).toFixed(1);
 }
 
+// Las notas viajan con el backend actual y conservan la serie 0 al sincronizar.
+function readWarmup(exercise) {
+  const match = String(exercise.notes || "").match(/\[Serie 0: (\d+(?:\.\d+)?) (kg|lbs) x (\d+)\]/);
+  if (!match) return null;
+  const weight = Number(match[1]);
+  const reps = Number(match[3]);
+  return Number.isFinite(weight) && reps > 0 ? { weight, unit: match[2], reps } : null;
+}
+
+function exerciseVolume(exercise) {
+  const canon = canonicalExerciseName(exercise.name);
+  const kg = normalizeTricepsUnilateralKg(canon, toKg(exercise.weight, exercise.unit));
+  const reps = cleanReps(exercise.reps).split(",").reduce((sum, value) => sum + (parseInt(value, 10) || 0), 0);
+  const warmup = readWarmup(exercise);
+  return kg * reps + (warmup ? toKg(warmup.weight, warmup.unit) * warmup.reps : 0);
+}
+
 function normalizeTricepsUnilateralKg(canonName, kg) {
   if (canonName === "Jalón de tríceps unilateral en polea" && kg >= 36) {
     return Math.floor(kg / 2);
@@ -700,6 +724,7 @@ let nutLogs = JSON.parse(localStorage.getItem("gym_cloud_nutrilogs")) || {};
 let weights = JSON.parse(localStorage.getItem("gym_cloud_weights")) || [{ date: "2026-11-16", weight: 65.0 }];
 let sheetUrl = localStorage.getItem("gym_sheets_url_v1") || DEFAULT_SHEET_URL;
 let queue = JSON.parse(localStorage.getItem("gym_sync_queue_v1")) || [];
+let activeDraftKey = "";
 
 function saveLocal() {
   renderToday();
@@ -749,6 +774,8 @@ function warmupTxt(w, u) {
 }
 
 function changeSplit(s) {
+  saveWorkoutDraft();
+  activeDraftKey = "";
   curSplit = s;
   document.getElementById("bSup").classList.toggle("active", s === "Superior");
   document.getElementById("bInf").classList.toggle("active", s === "Inferior");
@@ -763,14 +790,107 @@ function syncSessionRirRest() {
     c.querySelector(".i-rir").value = rirVal;
     c.querySelector(".i-rest").value = restVal;
   });
+  saveWorkoutDraft();
+}
+
+function saveWorkoutDraft() {
+  if (!activeDraftKey) return;
+  const exercises = [...document.querySelectorAll("#exList .ex-card")].map(card => ({
+    name: card.dataset.name,
+    unit: card.dataset.unit,
+    status: card.dataset.status,
+    completed: card.dataset.completed === "true",
+    order: Number(card.dataset.order),
+    open: card.open,
+    values: Object.fromEntries([...card.querySelectorAll("select")].filter(el => !el.classList.contains("i-rep")).map(el => [el.className, el.value])),
+    reps: [...card.querySelectorAll(".i-rep")].map(el => el.value)
+  }));
+  localStorage.setItem(activeDraftKey, JSON.stringify({ exercises,
+    rir: document.getElementById("gRir").value,
+    rest: document.getElementById("gRest").value,
+    notes: document.getElementById("gNotes").value
+  }));
+}
+
+function sortExerciseCards() {
+  const box = document.getElementById("exList");
+  const cards = [...box.querySelectorAll(".ex-card")];
+  cards.sort((a, b) => Number(a.dataset.completed === "true") - Number(b.dataset.completed === "true") || Number(a.dataset.order) - Number(b.dataset.order));
+  cards.forEach((card, index) => {
+    box.appendChild(card);
+    const completed = card.dataset.completed === "true";
+    card.classList.toggle("completed", completed);
+    card.querySelector(".ex-number").textContent = index + 1;
+    const button = card.querySelector(".complete-btn");
+    button.textContent = completed ? "✓" : "○";
+    button.setAttribute("aria-pressed", String(completed));
+    button.setAttribute("aria-label", `${completed ? "Marcar pendiente" : "Marcar completado"}: ${card.dataset.name}`);
+  });
+  const completed = cards.filter(card => card.dataset.completed === "true").length;
+  document.getElementById("workoutProgress").textContent = `${completed} de ${cards.length} completados · Pendientes arriba`;
+}
+
+function warmupFromCard(card) {
+  const reps = card.querySelector(".i-warm-rep").value;
+  if (reps === "") return null;
+  return { weight: Number(card.querySelector(".i-warm-weight").value), unit: card.dataset.unit, reps: Number(reps) };
+}
+
+function handleWorkoutChange(event) {
+  const card = event.target.closest(".ex-card");
+  if (card && card.dataset.completed === "true" && [...card.querySelectorAll(".i-rep")].some(el => el.value === "")) {
+    card.dataset.completed = "false";
+    sortExerciseCards();
+  }
+  saveWorkoutDraft();
+}
+
+function toggleExerciseCompleted(button, event) {
+  event.preventDefault();
+  const card = button.closest(".ex-card");
+  const completed = card.dataset.completed !== "true";
+  if (completed && [...card.querySelectorAll(".i-rep")].some(el => el.value === "")) {
+    card.open = true;
+    return toast("Registra las series efectivas antes de completar el ejercicio");
+  }
+  card.dataset.completed = String(completed);
+  if (completed) card.open = false;
+  sortExerciseCards();
+  saveWorkoutDraft();
 }
 
 function renderExList() {
+  saveWorkoutDraft();
   const box = document.getElementById("exList");
   box.innerHTML = "";
+  activeDraftKey = `gym_draft_v1_${document.getElementById("gDate").value}_${curSplit}`;
+  const draft = JSON.parse(localStorage.getItem(activeDraftKey) || "null");
   document.getElementById("extraExercise").innerHTML = optionsHTML(TEMPLATES[curSplit].map(t => t[0]), "");
-  TEMPLATES[curSplit].forEach(t => box.appendChild(makeExCard(t[0], t[1], t[2], t[3])));
-  if (box.firstElementChild) box.firstElementChild.open = true;
+  if (draft) {
+    document.getElementById("gRir").value = draft.rir;
+    document.getElementById("gRest").value = draft.rest;
+    document.getElementById("gNotes").value = draft.notes;
+    draft.exercises.sort((a, b) => a.order - b.order).forEach(saved => {
+      const template = TEMPLATES[curSplit].find(t => t[0] === saved.name);
+      if (!template) return;
+      const card = makeExCard(...template);
+      box.appendChild(card);
+      card.dataset.completed = String(saved.completed);
+      card.dataset.status = saved.status;
+      Object.entries(saved.values).forEach(([className, value]) => {
+        card.getElementsByClassName(className)[0].value = value;
+      });
+      renderRepSelectors(card);
+      card.querySelectorAll(".i-rep").forEach((el, i) => { el.value = saved.reps[i] ?? ""; });
+      setU(card.querySelector(saved.unit === "lbs" ? ".unit-lbs" : ".unit-kg"), saved.unit);
+      card.querySelectorAll(".st-btn").forEach(btn => btn.classList.toggle("active", btn.dataset.status === saved.status));
+      card.open = saved.open;
+    });
+  } else {
+    TEMPLATES[curSplit].forEach(t => box.appendChild(makeExCard(...t)));
+    if (box.firstElementChild) box.firstElementChild.open = true;
+  }
+  sortExerciseCards();
 }
 
 const RIR_OPTIONS = Array.from({ length: 6 }, (_, i) => `RIR ${i}`);
@@ -806,8 +926,10 @@ function makeExCard(name, defU, setup, warn) {
   div.dataset.name = name;
   div.dataset.unit = u;
   div.dataset.status = "☑️";
+  div.dataset.completed = "false";
+  div.dataset.order = document.querySelectorAll("#exList .ex-card").length;
   div.innerHTML = `
-    <summary class="ex-summary"><span class="ex-number">${document.querySelectorAll("#exList .ex-card").length + 1}</span><div class="ex-title"><div class="ex-name">${escapeOption(name)}</div><div class="sub ex-preview">${last ? `Última vez: ${last.weight} ${last.unit} · ${escapeOption(cleanReps(last.reps))}` : 'Sin registro previo · Abre para empezar'}</div></div></summary>
+    <summary class="ex-summary"><span class="ex-number">${document.querySelectorAll("#exList .ex-card").length + 1}</span><div class="ex-title"><div class="ex-name">${escapeOption(name)}</div><div class="sub ex-preview">${last ? `Última vez: ${last.weight} ${last.unit} · ${escapeOption(cleanReps(last.reps))}` : 'Sin registro previo · Abre para empezar'}</div></div><button type="button" class="complete-btn" aria-pressed="false" aria-label="Marcar completado: ${escapeOption(name)}" onclick="toggleExerciseCompleted(this,event)">○</button></summary>
     <div class="exercise-body">
     <div class="tags">
       <span class="${adv.cls}">${adv.txt}</span>
@@ -821,16 +943,20 @@ function makeExCard(name, defU, setup, warn) {
         <div class="w-box">
           <select class="i-w" aria-label="Peso" onchange="updWarm(this)">${optionsHTML([...new Set([Number(w), ...Array.from({ length: 1001 }, (_, i) => i / 2)])].sort((a,b) => a-b), w)}</select>
           <div class="u-tog">
-            <button type="button" class="u-btn ${u==='kg'?'active':''}" onclick="setU(this,'kg')">kg</button>
-            <button type="button" class="u-btn ${u==='lbs'?'active':''}" onclick="setU(this,'lbs')">lbs</button>
+            <button type="button" class="u-btn unit-kg ${u==='kg'?'active':''}" onclick="setU(this,'kg');saveWorkoutDraft()">kg</button>
+            <button type="button" class="u-btn unit-lbs ${u==='lbs'?'active':''}" onclick="setU(this,'lbs');saveWorkoutDraft()">lbs</button>
           </div>
         </div>
       </div>
       <div>
-        <label>Series</label>
-        <select class="i-series" aria-label="Número de series" onchange="renderRepSelectors(this.closest('.ex-card'))">${optionsHTML([1, 2, 3, 4, 5, 6], Math.min(6, lastSeries))}</select>
+        <label>Series efectivas</label>
+        <select class="i-series" aria-label="Número de series efectivas" onchange="renderRepSelectors(this.closest('.ex-card'))">${optionsHTML([1, 2, 3, 4, 5, 6], Math.min(6, lastSeries))}</select>
       </div>
     </div>
+    <div class="warmup-row"><b>Serie 0 · Aproximación</b><div class="row2">
+      <div><label>Peso (<span class="warm-unit">${u}</span>)</label><select class="i-warm-weight" aria-label="Peso de serie 0">${optionsHTML(Array.from({ length: 1001 }, (_, i) => i / 2), Math.max(0, Math.round(w - (u === 'lbs' ? 15 : 7))))}</select></div>
+      <div><label>Repeticiones</label><select class="i-warm-rep" aria-label="Repeticiones de serie 0"><option value="">Sin aproximación registrada</option>${optionsHTML(Array.from({ length: 40 }, (_, i) => i + 1), '')}</select></div>
+    </div></div>
     <div class="rep-selectors row2" style="margin-bottom:10px;"></div>
     <details class="advanced"><summary>Ajustes · RIR, descanso y modalidad</summary><div class="row2" style="margin-bottom:6px;">
       <div>
@@ -851,10 +977,10 @@ function makeExCard(name, defU, setup, warn) {
       </div>
     </div>
     </details><div class="st-row">
-      <button type="button" class="st-btn active" onclick="setSt(this,'☑️')">Cumplido</button>
-      <button type="button" class="st-btn" onclick="setSt(this,'✅')">Dominado</button>
-      <button type="button" class="st-btn" onclick="setSt(this,'📉')">Bajón</button>
-      <button type="button" class="st-btn" onclick="setSt(this,'❎')">Molestia</button>
+      <button type="button" data-status="☑️" class="st-btn active" onclick="setSt(this,'☑️')">Cumplido</button>
+      <button type="button" data-status="✅" class="st-btn" onclick="setSt(this,'✅')">Dominado</button>
+      <button type="button" data-status="📉" class="st-btn" onclick="setSt(this,'📉')">Bajón</button>
+      <button type="button" data-status="❎" class="st-btn" onclick="setSt(this,'❎')">Molestia</button>
     </div></div>
   `;
   renderRepSelectors(div);
@@ -871,17 +997,21 @@ function setU(btn, u) {
   c.querySelectorAll(".u-btn").forEach(b => b.classList.remove("active"));
   btn.classList.add("active");
   c.querySelector(".w-tag").textContent = warmupTxt(c.querySelector(".i-w").value, u);
+  c.querySelector(".warm-unit").textContent = u;
 }
 function setSt(btn, st) {
   const c = btn.closest(".ex-card");
   c.dataset.status = st;
   c.querySelectorAll(".st-btn").forEach(b => b.classList.remove("active"));
   btn.classList.add("active");
+  saveWorkoutDraft();
 }
 function addExtraEx() {
   const picker = document.getElementById("extraExercise");
   const template = TEMPLATES[curSplit].find(t => t[0] === picker.value);
   if (template) document.getElementById("exList").appendChild(makeExCard(...template));
+  sortExerciseCards();
+  saveWorkoutDraft();
 }
 
 function saveWorkout() {
@@ -894,7 +1024,8 @@ function saveWorkout() {
   const exercises = [];
   document.querySelectorAll("#exList .ex-card").forEach(c => {
     const selections = [...c.querySelectorAll(".i-rep")].map(el => el.value);
-    if (selections.every(value => value === "")) return;
+    const warmup = warmupFromCard(c);
+    if (selections.every(value => value === "") && !warmup) return;
     if (selections.some(value => value === "")) {
       exercises.push(null);
       return;
@@ -903,7 +1034,8 @@ function saveWorkout() {
     const exRir = c.querySelector(".i-rir").value.trim();
     const exRest = c.querySelector(".i-rest").value.trim();
     const exSetup = [c.querySelector(".i-mode").value, c.querySelector(".i-setup").value].join(" · ");
-    const combinedExNotes = [exSetup, exRir, exRest].filter(Boolean).join(" | ");
+    const warmupNote = warmup ? `[Serie 0: ${warmup.weight} ${warmup.unit} x ${warmup.reps}]` : "";
+    const combinedExNotes = [exSetup, exRir, exRest, warmupNote].filter(Boolean).join(" | ");
 
     exercises.push({
       name: c.dataset.name,
@@ -920,6 +1052,8 @@ function saveWorkout() {
   workouts.push(s);
   workouts.sort((a, b) => a.date.localeCompare(b.date));
   saveLocal();
+  localStorage.removeItem(activeDraftKey);
+  activeDraftKey = "";
   renderExList();
   renderProgressAndRanks();
 
@@ -1235,10 +1369,12 @@ function renderProgressAndRanks() {
       }
 
       if (!exMap[canon]) {
-        exMap[canon] = { name: canon, firstKg: kg, firstDate: validDate, bestKg: kg, extraNote };
+        exMap[canon] = { name: canon, firstKg: kg, firstDate: validDate, bestKg: kg, extraNote, volume: 0, last: e };
       } else {
         if (kg > exMap[canon].bestKg) exMap[canon].bestKg = kg;
       }
+      exMap[canon].volume += exerciseVolume(e);
+      exMap[canon].last = e;
     });
   });
 
@@ -1291,6 +1427,8 @@ function renderProgressAndRanks() {
       <div class="bar-bg"><div class="bar-fg" style="width:${rk.pctNext}%; background:${rk.currentTier.color};"></div></div>
 
       <div class="tier-scale">${tiersHTML}</div>
+      <div class="sub" style="margin-top:14px;">Volumen registrado: <b>${item.volume.toLocaleString('es-MX', { maximumFractionDigits: 1 })} kg·rep</b> · Incluye aproximaciones registradas</div>
+      <div class="sub" style="margin-top:8px;">Último registro · ${readWarmup(item.last) ? `Serie 0: ${readWarmup(item.last).weight} ${readWarmup(item.last).unit} × ${readWarmup(item.last).reps} reps · ` : ''}Efectivas: ${escapeOption(cleanReps(item.last.reps))} reps con ${item.last.weight} ${escapeOption(item.last.unit)}</div>
     `;
     box.appendChild(card);
   });
@@ -1356,7 +1494,18 @@ async function pullFromSheets() {
     const res = await fetch(sheetUrl);
     const data = await res.json();
     if (data && data.ok) {
-      if (Array.isArray(data.workouts)) workouts = sanitizeWorkoutsList(data.workouts);
+      if (Array.isArray(data.workouts)) {
+        const merged = sanitizeWorkoutsList(data.workouts);
+        queue.filter(item => item.type === "workout").forEach(item => {
+          const local = item.payload;
+          const remote = merged.find(s => s.date === local.date && s.split === local.split);
+          if (!remote) merged.push(local);
+          else local.exercises.forEach(exercise => {
+            if (!remote.exercises.some(e => e.name === exercise.name)) remote.exercises.push(exercise);
+          });
+        });
+        workouts = sanitizeWorkoutsList(merged);
+      }
       if (data.nutLogs) nutLogs = mergeNutritionLogs(nutLogs, data.nutLogs);
       if (Array.isArray(data.weights) && data.weights.length) weights = data.weights;
       saveLocal();
@@ -1454,6 +1603,7 @@ function localToday() {
 }
 
 window.onload = () => {
+  document.getElementById("gNotes").addEventListener("change", saveWorkoutDraft);
   document.getElementById("gRir").innerHTML = optionsHTML(RIR_OPTIONS, "RIR 2");
   document.getElementById("gRest").innerHTML = optionsHTML(REST_OPTIONS, "2:00 min");
   const t = localToday();
