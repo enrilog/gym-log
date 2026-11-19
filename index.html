@@ -38,8 +38,16 @@
     .hero-number {font-size:54px;font-weight:750;letter-spacing:-.065em;line-height:1.1;margin:7px 0;} .hero-number small {font-size:16px;letter-spacing:0;font-weight:500;color:var(--muted);}
     .hero-note {color:var(--muted);font-size:14px;} .nutrition-ring {width:86px;height:86px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--accent-solid) var(--ring,0%),#e8edf4 0);flex-shrink:0;}
     .nutrition-ring span {display:grid;place-items:center;width:70px;height:70px;border-radius:50%;background:#f9fbff;font-size:18px;font-weight:700;}
-    #cNow,#pNow {display:inline-block;font-size:32px;font-weight:700;letter-spacing:-.04em;}
-    .metric-pair {display:grid;grid-template-columns:1fr 1fr;gap:20px;padding-top:20px;border-top:1px solid var(--border);} .metric-value {font-size:24px;font-weight:650;letter-spacing:-.04em;}
+    .nutrition-metrics {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;}
+    .hero .nutrition-metrics {grid-template-columns:repeat(3,minmax(0,1fr));padding-top:16px;border-top:1px solid var(--border);}
+    .nutrition-metric {min-width:0;padding:12px;background:var(--input);border-radius:12px;}
+    .hero .nutrition-metric {background:transparent;padding:0;}
+    .metric-value {font-size:24px;font-weight:650;letter-spacing:-.04em;}
+    .nutrition-metric .sub {overflow-wrap:anywhere;}
+    .nutrition-reference {border-top:1px solid var(--border);margin-top:18px;padding-top:12px;}
+    .nutrition-reference summary {color:var(--accent);font-size:14px;padding:5px 0;}
+    .nutrition-reference dl {display:grid;grid-template-columns:1fr auto;gap:6px 16px;margin:8px 0;}
+    .food-source {color:var(--accent);text-underline-offset:3px;}
     .section-caption {font-size:12px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:28px 4px 12px;}
     .training-preview {display:flex;align-items:center;gap:16px;margin:16px 0 20px;} .preview-icon {display:grid;place-items:center;width:50px;height:50px;border-radius:15px;background:#eaf3ff;color:var(--accent);flex-shrink:0;}
     .ex-card {padding:0;overflow:hidden;} summary {list-style:none;} summary::-webkit-details-marker {display:none;}
@@ -101,8 +109,8 @@
     <div class="page-heading"><div class="eyebrow" id="todayDate"></div><h1>Tu día, a tu ritmo.</h1><p class="sub">Pequeños pasos. Un progreso que se nota.</p></div>
     <div class="dashboard-grid">
       <div class="card hero">
-        <div class="hero-top"><div><div class="eyebrow">Nutrición de hoy</div><div class="hero-number"><span id="todayCalories">0</span> <small>kcal</small></div><div class="hero-note" id="todayRemaining">Tu meta: 2,700 kcal</div></div><div class="nutrition-ring" id="todayRing"><span id="todayPercent">0%</span></div></div>
-        <div class="metric-pair"><div><label>Proteína</label><div class="metric-value"><span id="todayProtein">0</span><span class="sub"> / 140 g</span></div><div class="bar-bg"><div id="todayProteinBar" class="bar-fg" style="width:0%"></div></div></div><div><label>Comidas registradas</label><div class="metric-value" id="todayFoodCount">0</div><div class="sub">Cada registro cuenta</div></div></div>
+        <div class="hero-top"><div><div class="eyebrow">Nutrición de hoy</div><div class="hero-number"><span id="todayCalories">0</span> <small>kcal</small></div><div class="hero-note" id="todayRemaining"></div></div><div class="nutrition-ring" id="todayRing"><span id="todayPercent">0%</span></div></div>
+        <div class="nutrition-metrics" id="todayMacros"></div>
         <div class="actions"><button class="btn" onclick="openTodayFood()">Registrar comida</button><button class="btn btn-sec" onclick="goTab('nut')">Ver comidas</button></div>
       </div>
       <div class="card"><div class="eyebrow">Tu entrenamiento</div><div class="training-preview"><div class="preview-icon" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 5v14M3 8v8M18 5v14M21 8v8M6 12h12"/></svg></div><div><h2 id="todayWorkoutTitle">Tú eliges la rutina</h2><p class="sub" id="todayWorkoutNote">Superior o inferior, cuando estés listo.</p></div></div><button class="btn btn-sec" onclick="goTab('gym')">Ir a entrenar</button></div>
@@ -153,18 +161,16 @@
         <span class="sec-t">Tu balance diario</span>
         <input type="date" id="nDate" style="width:auto; padding:5px 8px; font-size:16px;" aria-label="Fecha de comidas" onchange="renderNut()" />
       </div>
-      <div class="row2">
-        <div>
-          <div style="font-size:0.8rem;"><b id="cNow">0</b> / 2700 kcal</div>
-          <div class="bar-bg"><div id="cBar" class="bar-fg" style="width:0%"></div></div>
-          <div class="sub" id="cRem">Restan 2700 kcal</div>
-        </div>
-        <div>
-          <div style="font-size:0.8rem;"><b id="pNow">0g</b> / 140g Prot</div>
-          <div class="bar-bg"><div id="pBar" class="bar-fg" style="width:0%"></div></div>
-          <div class="sub">C: <span id="cbNow">0</span>g · G: <span id="fNow">0</span>g</div>
-        </div>
-      </div>
+      <div class="nutrition-metrics" id="dailyNutrition"></div>
+      <details class="nutrition-reference">
+        <summary>Metas de fibra, calcio y vitamina D</summary>
+        <dl class="sub">
+          <dt>Fibra</dt><dd>30–38 g al día</dd>
+          <dt>Calcio</dt><dd>1,000 mg al día</dd>
+          <dt>Vitamina D</dt><dd>600 UI al día</dd>
+        </dl>
+        <p class="sub">Referencias de ingesta. Los totales del registro corresponden a calorías y macros.</p>
+      </details>
     </div>
 
     <div class="card">
@@ -177,12 +183,18 @@
       <div class="sec-h">
         <span class="sec-t">¿Qué comiste?</span>
       </div>
-      <div style="margin-bottom:8px;">
-        <label>Buscar Platillo o Alimento</label>
-        <input type="text" id="fSearch" placeholder="Escribe ej. tamal, barbacoa, enchiladas, arroz..." oninput="renderFoodSel()" />
+      <div class="row2" style="margin-bottom:8px;">
+        <div>
+          <label for="fSearch">Buscar alimento</label>
+          <input type="search" id="fSearch" placeholder="Ej. Ritz, nopales, salpicón" oninput="renderFoodSel()" />
+        </div>
+        <div>
+          <label for="fCategory">Categoría</label>
+          <select id="fCategory" onchange="renderFoodSel()"><option value="">Todas</option></select>
+        </div>
       </div>
       <div style="margin-bottom:8px;">
-        <label>Seleccionar de la Lista (<span id="fCount">0</span> opciones)</label>
+        <label for="fSel">Alimento (<span id="fCount">0</span> opciones)</label>
         <select id="fSel" onchange="configureFoodQuantity(true); prevFood()"></select>
       </div>
       <div class="row2" style="align-items:end;">
@@ -191,6 +203,7 @@
       </div>
       <div class="sub" style="margin-top:8px;">Pesa la comida lista para comer, sin recipiente. Los nutrientes son estimaciones según la preparación; yogur y mantequilla de maní se miden en cucharadas soperas.</div>
       <div id="fPrev" class="sub" style="margin-top:8px;"></div>
+      <div id="fSource" class="sub"></div>
     </div>
 
     <div class="card">
@@ -202,9 +215,12 @@
       <summary class="sec-t" style="margin-bottom:12px;">Añadir un alimento personalizado</summary>
       <div style="margin-bottom:8px;"><input type="text" id="nfName" placeholder="Nombre y unidad (ej. Tortilla de maíz, 1 pieza)" /></div>
       <div class="row2" style="margin-bottom:8px;">
-        <input type="number" id="nfCal" inputmode="numeric" placeholder="kcal por unidad" />
-        <input type="number" id="nfProt" inputmode="decimal" placeholder="Proteína por unidad (g)" />
+        <input type="number" id="nfCal" inputmode="decimal" min="0" step="any" placeholder="kcal por unidad" aria-label="Calorías por unidad" />
+        <input type="number" id="nfProt" inputmode="decimal" min="0" step="any" placeholder="Proteína (g)" aria-label="Proteína por unidad en gramos" />
+        <input type="number" id="nfCarb" inputmode="decimal" min="0" step="any" placeholder="Carbohidratos (g)" aria-label="Carbohidratos por unidad en gramos" />
+        <input type="number" id="nfFat" inputmode="decimal" min="0" step="any" placeholder="Grasas (g)" aria-label="Grasas por unidad en gramos" />
       </div>
+      <p class="sub" style="margin-bottom:8px;">Usa la misma porción para todos los valores. Si dejas carbohidratos y grasas vacíos, se estiman con las calorías restantes.</p>
       <button type="button" class="btn btn-sec" onclick="createFood()">Guardar en Catálogo</button>
     </details>
   </section>
@@ -290,6 +306,13 @@
 
 <script>
 const DEFAULT_SHEET_URL = "https://script.google.com/macros/s/AKfycbyW2T66yyOpkl7idL633Ekb3NF1jPOp0GXleTFnNvdOa9dI6d06A7BnzntYI0blFmUp/exec";
+
+const NUTRITION_GOALS = {
+  cal: { label: "Energía", target: 2700, unit: "kcal" },
+  prot: { label: "Proteína", target: 140, unit: "g" },
+  carb: { label: "Carbohidratos", target: 355, unit: "g" },
+  fat: { label: "Grasas", target: 80, unit: "g" }
+};
 
 const TEMPLATES = {
   Superior: [
@@ -588,8 +611,11 @@ function unitFood(item) {
   for (const field of ["cal", "prot", "carb", "fat"]) result[field] = +(Number(item[field] || 0) / divisor).toFixed(2);
   return result;
 }
+function foodSearchText(value) {
+  return String(value).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
 function foodKey(name) {
-  const key = String(name).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+  const key = foodSearchText(name)
     .replace(/\([^)]*\)/g, "").replace(/\s+/g, " ").trim();
   const aliases = { tortilla: "tortilla de maiz", tortillas: "tortilla de maiz", "tortillas de maiz": "tortilla de maiz", "huevos revueltos": "huevo revuelto", "huevo revuelto solo": "huevo revuelto" };
   return aliases[key] || key.replace('sope o huarache', 'sope');
@@ -638,23 +664,185 @@ function configureFoodQuantity(reset = false) {
   const food = foods[document.getElementById('fSel').value];
   const selector = document.getElementById('fQty');
   const mode = food?.quantityMode || 'units';
-  if (reset || selector.dataset.mode !== mode) {
-    const values = mode === 'grams' ? Array.from({length:2000},(_,i)=>i+1) : Array.from({length:30},(_,i)=>i+1);
-    selector.innerHTML = optionsHTML(values, mode === 'grams' ? 100 : 1);
+  const measured = mode === "grams" || mode === "milliliters";
+  const selection = food?.name || "";
+  if (reset || selector.dataset.mode !== mode || selector.dataset.food !== selection) {
+    const values = Array.from({ length: measured ? 2000 : 30 }, (_, i) => i + 1);
+    selector.innerHTML = optionsHTML(values, food?.defaultAmount ?? (measured ? 100 : 1));
     selector.dataset.mode = mode;
+    selector.dataset.food = selection;
   }
-  document.getElementById('fQtyLabel').textContent = mode === 'grams' ? 'Peso de tu porción (g)' : mode === 'spoons' ? 'Cucharadas soperas' : mode === 'pieces' ? 'Cantidad de piezas' : 'Cantidad de unidades';
+  const labels = { grams: "Peso de tu porción (g)", milliliters: "Volumen de tu porción (ml)",
+    spoons: "Cucharadas soperas", pieces: "Cantidad de piezas", units: "Cantidad de unidades" };
+  document.getElementById("fQtyLabel").textContent = labels[mode];
 }
 function foodMultiplier(food) {
   const amount = Number(document.getElementById('fQty').value);
-  return food.quantityMode === 'grams' ? amount / 100 : amount;
+  return ["grams", "milliliters"].includes(food.quantityMode) ? amount / 100 : amount;
+}
+function foodNutritionForPortion(food, quantity) {
+  const roundGram = value => Math.round(value * 10 + 1e-9) / 10;
+  return {
+    cal: Math.round(food.cal * quantity),
+    prot: roundGram(food.prot * quantity),
+    carb: roundGram(food.carb * quantity),
+    fat: roundGram(food.fat * quantity)
+  };
 }
 function foodQuantityText(item) {
-  if (/\(100 g\)$/.test(item.name)) return `${+(Number(item.qty) * 100).toFixed(1)} g`;
-  if (/\(1 pieza mediana\)$/.test(item.name)) return `${item.qty} pieza${Number(item.qty) === 1 ? '' : 's'}`;
+  const measure = item.name.match(/\(100 (g|ml)\)$/);
+  if (measure) return `${+(Number(item.qty) * 100).toFixed(1)} ${measure[1]}`;
+  if (/\(1 pieza(?: mediana)?\)$/.test(item.name)) return `${item.qty} pieza${Number(item.qty) === 1 ? '' : 's'}`;
   if (item.name.includes('cucharada sopera')) return `${item.qty} cucharada${Number(item.qty) === 1 ? '' : 's'} sopera${Number(item.qty) === 1 ? '' : 's'}`;
   return `${item.qty} unidad${Number(item.qty) === 1 ? '' : 'es'}`;
 }
+const FOOD_SOURCES = {
+  usda: { label: "USDA FoodData Central", url: "https://fdc.nal.usda.gov/download-datasets/" },
+  salmas: { label: "Ficha de Salmas Saníssimo", url: "https://nutricionappsc-com-assets.s3.amazonaws.com/2024-04/DossierSanissimo_0.pdf?VersionId=Jur0ZKC.uQnQIqIM_QEkfhzzHRaOhNUg" },
+  ritz: { label: "Etiqueta de Ritz México", url: "https://www.heb.com.mx/nabisco-galletas-ritz-89-gr-650000/p" },
+  profeco: { label: "Estudio de Profeco", url: "https://revistadelconsumidor.profeco.gob.mx/media/revistas/sumario/sumario_estudio_de_calidad_2025_11_164h9AAj.pdf#page=8" },
+  salpicon: { label: "Receta de referencia de Profeco", url: "https://bibliotecadelconsumidor.profeco.gob.mx/media/revistas/RC-372%20Febrero%202008.pdf#page=93" }
+};
+
+// Valores aproximados por 100 g de la preparación indicada, en gramos comestibles.
+// Columnas: nombre, kcal, proteína, carbohidratos totales, grasa y sinónimos.
+const EXPANDED_FOODS = [
+  ["Verduras y hortalizas", [
+    ["Jitomate rojo crudo", 18, 0.9, 3.9, 0.2, "tomate saladet"],
+    ["Cebolla blanca cruda", 40, 1.1, 9.3, 0.1],
+    ["Zanahoria cruda", 41, 0.9, 9.6, 0.2],
+    ["Zanahoria cocida", 35, 0.8, 8.2, 0.2],
+    ["Lechuga romana cruda", 17, 1.2, 3.3, 0.3],
+    ["Lechuga iceberg cruda", 14, 0.9, 3, 0.1],
+    ["Pepino crudo con cáscara", 15, 0.7, 3.6, 0.1],
+    ["Nopales cocidos", 15, 1.4, 3.3, 0.1, "nopal"],
+    ["Brócoli cocido", 35, 2.4, 7.2, 0.4],
+    ["Coliflor cocida", 23, 1.8, 4.1, 0.5],
+    ["Calabacita cocida", 15, 1.1, 2.7, 0.4, "calabacin"],
+    ["Ejotes cocidos", 35, 1.9, 7.9, 0.3, "judias verdes"],
+    ["Chayote cocido", 24, 0.6, 5.1, 0.5],
+    ["Espinaca cruda", 23, 2.9, 3.6, 0.4],
+    ["Espinaca cocida", 23, 3, 3.8, 0.3],
+    ["Acelga cocida", 20, 1.9, 4.1, 0.1],
+    ["Col blanca cruda", 25, 1.3, 5.8, 0.1, "repollo"],
+    ["Pimiento morrón rojo crudo", 31, 1, 6, 0.3, "pimenton"],
+    ["Apio crudo", 14, 0.7, 3, 0.2],
+    ["Rábano crudo", 16, 0.7, 3.4, 0.1],
+    ["Betabel cocido", 44, 1.7, 10, 0.2, "remolacha"],
+    ["Jícama cruda", 38, 0.7, 8.8, 0.1],
+    ["Champiñón blanco crudo", 22, 3.1, 3.3, 0.3, "hongo"],
+    ["Berenjena cocida", 35, 0.8, 8.7, 0.2],
+    ["Espárragos cocidos", 22, 2.4, 4.1, 0.2],
+    ["Tomatillo verde crudo", 32, 1, 5.8, 1, "tomate verde"],
+    ["Chile jalapeño crudo", 29, 0.9, 6.5, 0.4],
+    ["Ajo crudo", 149, 6.4, 33.1, 0.5],
+    ["Cilantro fresco", 23, 2.1, 3.7, 0.5]
+  ]],
+  ["Legumbres, cereales y tubérculos", [
+    ["Arroz blanco cocido sin aceite", 130, 2.7, 28.2, 0.3],
+    ["Arroz integral cocido", 123, 2.7, 25.6, 1],
+    ["Espagueti cocido sin salsa", 158, 5.8, 30.9, 0.9, "pasta"],
+    ["Avena seca en hojuelas", 379, 13.2, 67.7, 6.5],
+    ["Avena cocida en agua", 71, 2.5, 12, 1.5],
+    ["Quinoa cocida", 120, 4.4, 21.3, 1.9, "quinua"],
+    ["Papa hervida sin cáscara", 87, 1.9, 20.1, 0.1, "patata"],
+    ["Camote hervido sin cáscara", 76, 1.4, 17.7, 0.1, "batata"],
+    ["Elote amarillo cocido", 96, 3.4, 21, 1.5, "maiz grano"],
+    ["Chícharos verdes cocidos", 84, 5.4, 15.6, 0.2, "guisantes"],
+    ["Frijoles negros cocidos", 132, 8.9, 23.7, 0.5],
+    ["Frijoles pintos cocidos", 143, 9, 26.2, 0.7],
+    ["Lentejas cocidas sin aceite", 116, 9, 20.1, 0.4],
+    ["Garbanzos cocidos", 164, 8.9, 27.4, 2.6],
+    ["Habas maduras cocidas", 110, 7.6, 19.7, 0.4],
+    ["Soya cocida", 173, 16.6, 9.9, 9],
+    ["Pan integral de trigo por peso", 252, 12.5, 42.7, 3.5],
+    ["Tortilla de maíz por peso", 218, 5.7, 44.6, 2.9],
+    ["Papas fritas estilo comida rápida", 312, 3.4, 41.4, 14.7]
+  ]],
+  ["Carnes, pescados y alternativas", [
+    ["Pechuga de pollo asada sin piel", 165, 31, 0, 3.6],
+    ["Muslo de pollo asado sin piel", 179, 24.8, 0, 8.2],
+    ["Pechuga de pavo asada sin piel", 147, 30.1, 0, 2.1],
+    ["Carne molida de res 90/10 cocida a la plancha", 230, 28.5, 0, 12],
+    ["Lomo de cerdo magro asado", 143, 26.2, 0, 3.5, "solomillo"],
+    ["Huevo entero cocido por peso", 155, 12.6, 1.1, 10.6],
+    ["Atún claro en agua drenado", 116, 25.5, 0, 0.8],
+    ["Sardina en aceite drenada con espinas", 208, 24.6, 0, 11.5],
+    ["Salmón atlántico cocido", 206, 22.1, 0, 12.4],
+    ["Tilapia cocida", 128, 26.2, 0, 2.7],
+    ["Camarón cocido", 99, 24, 0.2, 0.3],
+    ["Tofu firme con calcio", 144, 17.3, 2.8, 8.7]
+  ]],
+  ["Lácteos y quesos", [
+    ["Yogur natural entero sin azúcar", 61, 3.5, 4.7, 3.3],
+    ["Yogur griego natural descremado por peso", 59, 10.2, 3.6, 0.4],
+    ["Queso cottage bajo en grasa", 81, 10.5, 4.8, 2.3],
+    ["Queso fresco", 299, 18.1, 3, 23.8],
+    ["Queso mozzarella de leche entera", 300, 22.2, 2.2, 22.4],
+    ["Queso cheddar", 403, 22.9, 3.1, 33.3],
+    ["Crema agria regular", 198, 2.4, 4.6, 19.4]
+  ]],
+  ["Grasas, semillas y condimentos", [
+    ["Aguacate por peso", 160, 2, 8.5, 14.7],
+    ["Aceite de oliva", 884, 0, 0, 100],
+    ["Aceite de canola", 884, 0, 0, 100],
+    ["Mantequilla con sal", 717, 0.9, 0.1, 81.1],
+    ["Mayonesa regular", 680, 1, 0.6, 74.9],
+    ["Almendras naturales", 579, 21.2, 21.6, 49.9],
+    ["Nuez de Castilla", 654, 15.2, 13.7, 65.2],
+    ["Cacahuates naturales sin sal", 567, 25.8, 16.1, 49.2, "mani"],
+    ["Pistaches naturales", 560, 20.2, 27.2, 45.3],
+    ["Chía seca", 486, 16.5, 42.1, 30.7],
+    ["Linaza", 534, 18.3, 28.9, 42.2],
+    ["Pepitas de calabaza sin cáscara", 559, 30.2, 10.7, 49.1],
+    ["Ajonjolí seco", 573, 17.7, 23.4, 49.7],
+    ["Miel de abeja", 304, 0.3, 82.4, 0],
+    ["Azúcar blanca", 387, 0, 100, 0],
+    ["Salsa catsup", 101, 1, 27.4, 0.1, "ketchup"]
+  ]],
+  ["Botanas y postres", [
+    ["Palomitas sin aceite", 387, 12.9, 77.8, 4.5],
+    ["Papas fritas de bolsa simples", 536, 7, 52.9, 34.6],
+    ["Totopos de maíz simples", 497, 6.6, 65.3, 25.3],
+    ["Galletas de avena comerciales", 450, 6.2, 68.7, 18.1],
+    ["Chocolate oscuro 70–85% cacao", 598, 7.8, 45.9, 42.6],
+    ["Helado de vainilla regular", 207, 3.5, 23.6, 11]
+  ]]
+].flatMap(([cat, rows]) => rows.map(([name, cal, prot, carb, fat, searchTerms]) => ({
+  cat, name: name + " (100 g)", cal, prot, carb, fat, searchTerms, quantityMode: "grams", source: "usda"
+})));
+
+EXPANDED_FOODS.push(
+  { cat: "Botanas y postres", name: "Galletas Salmas Saníssimo de maíz (1 pieza)", cal: 21, prot: 0.42, carb: 4.64, fat: 0.28,
+    quantityMode: "pieces", pieceGrams: 6, source: "salmas", note: "3 piezas pesan 18 g. Los carbohidratos totales incluyen la fibra de la etiqueta." },
+  { cat: "Botanas y postres", name: "Galletas Ritz Original México (100 g)", cal: 473.3, prot: 6.2, carb: 67.3, fat: 20.5,
+    quantityMode: "grams", defaultAmount: 30, source: "ritz", note: "La etiqueta por 100 g indica 66 g de carbohidratos disponibles y 1.3 g de fibra." },
+  { cat: "Botanas y postres", name: "Cacahuates japoneses Mafer clásico (100 g)", cal: 535, prot: 19.1, carb: 43, fat: 31.7,
+    quantityMode: "grams", defaultAmount: 30, source: "profeco", searchTerms: "cacahuate japones", note: "Referencia del producto Mafer clásico de 230 g." },
+  { cat: "Botanas y postres", name: "Cacahuates japoneses Karate (100 g)", cal: 528, prot: 19.6, carb: 45, fat: 30.1,
+    quantityMode: "grams", defaultAmount: 30, source: "profeco", searchTerms: "cacahuate japones" },
+  { cat: "Botanas y postres", name: "Cacahuates japoneses Kiyakis (100 g)", cal: 547, prot: 19, carb: 42, fat: 33.8,
+    quantityMode: "grams", defaultAmount: 30, source: "profeco", searchTerms: "cacahuate japones" },
+  { cat: "Guisados y Proteínas", name: "Salpicón de res casero (100 g)", cal: 162, prot: 15.8, carb: 2.3, fat: 9.9,
+    quantityMode: "grams", source: "salpicon", note: "Estimación con 55 g de res deshebrada, 33 g de jitomate, lechuga y cebolla, 8 g de aguacate y 4 g de aceite. Pesa tostadas y otros acompañamientos por separado." }
+);
+
+// Referencias aproximadas por 100 ml de bebida lista para tomar.
+const DRINKS = [
+  ["Leche entera natural", 63, 3.3, 4.9, 3.4],
+  ["Leche baja en grasa 2%", 52, 3.4, 4.9, 2.0],
+  ["Leche descremada", 35, 3.5, 5.1, 0.1],
+  ["Bebida de almendra sin azúcar", 13, 0.4, 0.3, 1.1],
+  ["Bebida de soya sin azúcar", 33, 3.3, 0.7, 1.8],
+  ["Jugo de naranja natural", 47, 0.7, 10.8, 0.2],
+  ["Café negro sin azúcar", 1, 0.1, 0, 0],
+  ["Té negro sin azúcar", 1, 0, 0.3, 0],
+  ["Agua natural o mineral sin azúcar", 0, 0, 0, 0]
+].map(([name, cal, prot, carb, fat]) => ({
+  cat: "Bebidas", name: name + " (100 ml)", cal, prot, carb, fat, quantityMode: "milliliters",
+  defaultAmount: 250, source: "usda"
+}));
+
 function loadMergedCatalog() {
   const saved = JSON.parse(localStorage.getItem("gym_foods_v1")) || [];
   const basics = [
@@ -705,7 +893,8 @@ function loadMergedCatalog() {
   });
   const merged = [];
   const seen = new Set();
-  [...fruits, ...INITIAL_FOODS, ...basics, ...saved].forEach(raw => {
+  const savedCustom = saved.filter(item => item.cat === "Mis Platillos Personalizados");
+  [...fruits, ...INITIAL_FOODS, ...basics, ...savedCustom, ...EXPANDED_FOODS, ...DRINKS, ...saved].forEach(raw => {
     const item = portionFood(unitFood(raw));
     const key = foodKey(item.name);
     if (!seen.has(key)) {
@@ -1108,6 +1297,7 @@ function renderQuickFoods() {
         saveLocal();
       }
       document.getElementById("fSearch").value = "";
+      document.getElementById("fCategory").value = "";
       renderFoodSel();
       document.getElementById("fSel").value = index;
       configureFoodQuantity(true);
@@ -1120,19 +1310,25 @@ function renderQuickFoods() {
 
 function renderFoodSel() {
   const sel = document.getElementById("fSel");
-  const searchKey = text => String(text).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-  const query = searchKey(document.getElementById("fSearch")?.value || "").trim();
+  const category = document.getElementById("fCategory");
+  const selectedCategory = category.value;
+  const foodCategory = food => food.cat || "Otros Platillos";
+  const categories = [...new Set(foods.map(foodCategory))].sort((a, b) => a.localeCompare(b, "es-MX"));
+  category.replaceChildren(new Option("Todas", ""), ...categories.map(name => new Option(name, name)));
+  category.value = categories.includes(selectedCategory) ? selectedCategory : "";
+  const tokens = foodSearchText(document.getElementById("fSearch").value).trim().split(/\s+/).filter(Boolean);
   sel.innerHTML = "";
 
   const groups = {};
   let matchCount = 0;
 
   foods.forEach((f, idx) => {
-    if (query && !searchKey(f.name).includes(query) && !searchKey(f.cat || "").includes(query)) {
+    const catName = foodCategory(f);
+    const searchable = foodSearchText([f.name, catName, f.searchTerms || ""].join(" "));
+    if ((category.value && category.value !== catName) || !tokens.every(token => searchable.includes(token))) {
       return;
     }
     matchCount++;
-    const catName = f.cat || "Otros Platillos";
     if (!groups[catName]) groups[catName] = [];
     groups[catName].push({ ...f, idx });
   });
@@ -1159,8 +1355,22 @@ function prevFood() {
   const f = foods[document.getElementById("fSel").value];
   const q = f ? foodMultiplier(f) : 0;
   const prevEl = document.getElementById("fPrev");
+  const sourceEl = document.getElementById("fSource");
+  sourceEl.replaceChildren();
   if (f) {
-    prevEl.textContent = `${document.getElementById("fQty").value} ${f.quantityMode === "grams" ? "g" : f.quantityMode === "spoons" ? "cucharadas soperas" : f.quantityMode === "pieces" ? "piezas" : "unidades"} · Aporte total: ${Math.round(f.cal*q)} kcal · ${(f.prot*q).toFixed(1)}g Prot · ${(f.carb*q).toFixed(0)}g Carbs · ${(f.fat*q).toFixed(0)}g Grasas${f.pieceGrams ? ` · Pieza mediana: aprox. ${f.pieceGrams} g comestibles` : ""}`;
+    const { cal, prot, carb, fat } = foodNutritionForPortion(f, q);
+    prevEl.textContent = `${foodQuantityText({ name: f.name, qty: q })} · ${cal} kcal · ${prot.toFixed(1)} g proteína · ${carb.toFixed(1)} g carbohidratos · ${fat.toFixed(1)} g grasas${f.pieceGrams ? ` · ${f.pieceGrams} g aprox. por pieza` : ""}`;
+    const source = Object.hasOwn(FOOD_SOURCES, f.source) ? FOOD_SOURCES[f.source] : null;
+    if (f.note) sourceEl.append(f.note);
+    if (source) {
+      const link = document.createElement("a");
+      link.className = "food-source";
+      link.href = source.url;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.textContent = source.label;
+      sourceEl.append(f.note ? " · " : "", link);
+    }
   } else {
     prevEl.textContent = "Sin coincidencias en la búsqueda.";
   }
@@ -1169,9 +1379,10 @@ function prevFood() {
 function addCatalogFood() {
   const f = foods[document.getElementById("fSel").value];
   if (!f) return toast("Selecciona un alimento válido");
-  const q = f ? foodMultiplier(f) : 0;
+  const q = foodMultiplier(f);
   if (!Number.isFinite(q) || q <= 0) return toast("Selecciona una cantidad válida");
-  quickFood(f.name, Math.round(f.cal*q), +(f.prot*q).toFixed(1), +(f.carb*q).toFixed(1), +(f.fat*q).toFixed(1), q);
+  const { cal, prot, carb, fat } = foodNutritionForPortion(f, q);
+  quickFood(f.name, cal, prot, carb, fat, q);
 }
 
 function quickFood(name, cal, prot, carb, fat, qty = 1) {
@@ -1199,39 +1410,36 @@ function renderNut() {
   const d = document.getElementById("nDate").value;
   const list = nutLogs[d] || [];
   const box = document.getElementById("fList");
-  box.innerHTML = list.length ? "" : `<div class="sub">Sin registros hoy.</div>`;
-  let c = 0, p = 0, cb = 0, f = 0;
+  box.innerHTML = list.length ? "" : `<div class="sub">Sin registros para esta fecha.</div>`;
   list.forEach((it, i) => {
-    c += it.cal; p += it.prot; cb += it.carb || 0; f += it.fat || 0;
     const r = document.createElement("div");
     r.className = "item-row";
-    r.innerHTML = `<div><b>${it.name}</b> <span class="sub">${foodQuantityText(it)}</span> <div class="sub">${it.cal} kcal · ${it.prot}g Prot</div></div>
-      <button type="button" class="pill" onclick="delFood('${d}',${i})">Quitar</button>`;
+    r.innerHTML = `<div><b>${escapeOption(it.name)}</b> <span class="sub">${escapeOption(foodQuantityText(it))}</span>
+      <div class="sub">${formatNutrition(it.cal)} kcal · ${formatNutrition(it.prot)} g proteína · ${formatNutrition(it.carb)} g carbohidratos · ${formatNutrition(it.fat)} g grasas</div></div>
+      <button type="button" class="pill">Quitar</button>`;
+    r.querySelector("button").onclick = () => delFood(d, i);
     box.appendChild(r);
   });
-  document.getElementById("cNow").textContent = Math.round(c);
-  document.getElementById("pNow").textContent = p.toFixed(0) + "g";
-  document.getElementById("cbNow").textContent = cb.toFixed(0);
-  document.getElementById("fNow").textContent = f.toFixed(0);
-  document.getElementById("cBar").style.width = Math.min(100, Math.round((c/2700)*100)) + "%";
-  document.getElementById("pBar").style.width = Math.min(100, Math.round((p/140)*100)) + "%";
-  const diff = 2700 - Math.round(c);
-  document.getElementById("cRem").textContent = diff > 0 ? `Faltan ${diff} kcal` : `Superávit cumplido (+${Math.abs(diff)} kcal)`;
+  renderNutritionMetrics("dailyNutrition", nutritionTotals(list), ["cal", "prot", "carb", "fat"]);
 }
 
 function createFood() {
   const name = document.getElementById("nfName").value.trim();
-  const cal = parseFloat(document.getElementById("nfCal").value) || 0;
-  const prot = parseFloat(document.getElementById("nfProt").value) || 0;
-  if (!name || cal <= 0) return toast("Escribe nombre y calorías");
+  const fields = ["nfCal", "nfProt", "nfCarb", "nfFat"].map(id => document.getElementById(id));
+  const [calText, protText, carbText, fatText] = fields.map(input => input.value);
+  const [cal, prot, declaredCarb, declaredFat] = [calText, protText, carbText, fatText].map(Number);
+  if (!name || calText === "") return toast("Escribe nombre y calorías");
+  if (fields.some(input => !input.validity.valid)) return toast("Ingresa valores nutricionales válidos");
+  if ((carbText === "") !== (fatText === "")) return toast("Escribe carbohidratos y grasas, o deja ambos vacíos");
   if (foods.some(item => foodKey(item.name) === foodKey(name))) return toast("Este alimento ya existe en el catálogo; búscalo por su nombre");
   const rem = Math.max(0, cal - prot * 4);
-  foods.unshift({ cat: "Mis Platillos Personalizados", name, cal, prot, carb: Math.round(rem*0.55/4), fat: Math.round(rem*0.45/9) });
+  const carb = carbText === "" ? Math.round(rem * 0.55 / 4) : declaredCarb;
+  const fat = fatText === "" ? Math.round(rem * 0.45 / 9) : declaredFat;
+  foods.unshift({ cat: "Mis Platillos Personalizados", name, cal, prot, carb, fat });
   saveLocal();
   renderFoodSel();
   document.getElementById("nfName").value = "";
-  document.getElementById("nfCal").value = "";
-  document.getElementById("nfProt").value = "";
+  fields.forEach(input => { input.value = ""; });
   toast("Platillo guardado en tu catálogo");
 }
 
@@ -1554,21 +1762,42 @@ function openTodayFood() {
   document.getElementById("foodCatalog").scrollIntoView({behavior:'smooth',block:'start'});
   document.getElementById("fSearch").focus({preventScroll:true});
 }
+function formatNutrition(value) {
+  return (Number(value) || 0).toLocaleString("es-MX", { maximumFractionDigits: 1 });
+}
+function nutritionTotals(items) {
+  return Object.fromEntries(Object.keys(NUTRITION_GOALS).map(key => [
+    key, items.reduce((sum, item) => sum + (Number(item[key]) || 0), 0)
+  ]));
+}
+function renderNutritionMetrics(id, totals, keys) {
+  document.getElementById(id).innerHTML = keys.map(key => {
+    const { label, target, unit } = NUTRITION_GOALS[key];
+    const amount = totals[key];
+    const progress = Math.max(0, Math.min(100, amount / target * 100));
+    return `<div class="nutrition-metric"><div class="sub">${label}</div>
+      <div class="metric-value">${formatNutrition(amount)}</div>
+      <div class="sub">/ ${formatNutrition(target)} ${unit}</div>
+      <div class="bar-bg" aria-hidden="true"><div class="bar-fg" style="width:${progress}%"></div></div></div>`;
+  }).join("");
+}
 function renderToday() {
   if (!document.getElementById("todayCalories")) return;
   const today = localToday();
   document.getElementById("todayDate").textContent = new Date(today + 'T12:00:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
   const items = nutLogs[today] || [];
-  const calories = items.reduce((sum,item)=>sum+Number(item.cal||0),0);
-  const protein = items.reduce((sum,item)=>sum+Number(item.prot||0),0);
-  const percentage = Math.min(100,Math.round(calories/2700*100));
-  document.getElementById("todayCalories").textContent = Math.round(calories).toLocaleString('es-MX');
-  document.getElementById("todayProtein").textContent = Math.round(protein);
-  document.getElementById("todayFoodCount").textContent = items.length;
-  document.getElementById("todayRemaining").textContent = calories < 2700 ? `Te faltan ${Math.round(2700-calories).toLocaleString('es-MX')} kcal para tu meta` : 'Meta de energía alcanzada';
+  const totals = nutritionTotals(items);
+  const calories = totals.cal;
+  const target = NUTRITION_GOALS.cal.target;
+  const percentage = Math.max(0, Math.min(100, Math.round(calories / target * 100)));
+  document.getElementById("todayCalories").textContent = formatNutrition(Math.round(calories));
+  const remaining = Math.round(target - calories);
+  document.getElementById("todayRemaining").textContent = remaining > 0
+    ? `Meta de ${formatNutrition(target)} kcal · Faltan ${formatNutrition(remaining)}`
+    : `Meta de ${formatNutrition(target)} kcal alcanzada`;
+  renderNutritionMetrics("todayMacros", totals, ["prot", "carb", "fat"]);
   document.getElementById("todayRing").style.setProperty('--ring',percentage+'%');
   document.getElementById("todayPercent").textContent = percentage+'%';
-  document.getElementById("todayProteinBar").style.width = Math.min(100,protein/140*100)+'%';
   document.getElementById("todayWeight").textContent = Number(weights.at(-1)?.weight || 65).toFixed(1);
   const sessions = workouts.filter(session=>session.date===today);
   document.getElementById("todayWorkoutTitle").textContent = sessions.length ? 'Hoy ya avanzaste' : 'Tú eliges la rutina';

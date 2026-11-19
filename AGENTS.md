@@ -4,7 +4,7 @@
 Aplicación web progresiva (PWA) de archivo único (`index.html`) diseñada para uso móvil (iPhone/Safari) con diseño claro inspirado en Apple Salud (fondo `#f5f5f7`, tarjetas blancas y acento azul `#0071e3`), conectada en tiempo real a Google Sheets mediante Google Apps Script (`Code.gs`).
 
 - **Usuario:** Hombre de 25 años, peso inicial 65.0 kg, objetivo de superávit calórico limpio hacia **75.0 kg** (+0.25 a +0.35 kg/semana).
-- **Metas Nutricionales Diarias:** `2,700 kcal` | `140 g Proteína` | `335 g Carbohidratos` | `80 g Grasas`.
+- **Metas Nutricionales Diarias:** `2,700 kcal` | `140 g Proteína` | `355 g Carbohidratos` | `80 g Grasas`.
 - **URL Activa de Google Apps Script (Web App):** `https://script.google.com/macros/s/AKfycbyW2T66yyOpkl7idL633Ekb3NF1jPOp0GXleTFnNvdOa9dI6d06A7BnzntYI0blFmUp/exec`
 
 ## 2. Arquitectura y Persistencia de Datos

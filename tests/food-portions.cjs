@@ -19,3 +19,29 @@ assert.deepEqual(JSON.parse(vm.runInContext('JSON.stringify(nutLogs)',context)),
 const second=context.loadMergedCatalog();assert.equal(second.length,foods.length);assert.equal(second.find(f=>f.name.startsWith('Yogur griego')).cal,13);
 assert.equal(context.foodQuantityText({name:rice.name,qty:1.57}),'157 g');
 console.log('OK: frutas únicas, migración de catálogo, gramos/cucharadas, recarga idempotente e historial intacto.');
+
+const goals = JSON.parse(vm.runInContext('JSON.stringify(NUTRITION_GOALS)', context));
+assert.deepEqual(Object.values(goals).map(goal => goal.target), [2700, 140, 355, 80]);
+assert.equal(goals.prot.target * 4 + goals.carb.target * 4 + goals.fat.target * 9, goals.cal.target);
+assert.deepEqual(
+  JSON.parse(JSON.stringify(context.nutritionTotals([{ cal: '63', prot: 1.3, carb: 13.9, fat: 0.8 }, { cal: 50, prot: 4 }]))),
+  { cal: 113, prot: 5.3, carb: 13.9, fat: 0.8 }
+);
+assert(foods.filter(food => food.cat === 'Verduras y hortalizas').length >= 25);
+assert.equal(foods.find(food => food.name.startsWith('Jitomate rojo crudo')).quantityMode, 'grams');
+const salmas = foods.find(food => food.name.startsWith('Galletas Salmas'));
+assert.equal(salmas.pieceGrams, 6);
+assert.equal(salmas.cal * 3, 63);
+assert.equal(context.foodQuantityText({ name: salmas.name, qty: 3 }), '3 piezas');
+assert.equal(foods.find(food => food.name.startsWith('Galletas Ritz Original México')).cal, 473.3);
+assert.deepEqual(
+  JSON.parse(JSON.stringify(context.foodNutritionForPortion(foods.find(food => food.source === 'ritz'), 0.3))),
+  { cal: 142, prot: 1.9, carb: 20.2, fat: 6.2 }
+);
+assert.equal(foods.find(food => food.name.startsWith('Cacahuates japoneses Mafer')).fat, 31.7);
+assert.equal(foods.find(food => food.name.startsWith('Salpicón de res')).quantityMode, 'grams');
+const milk = foods.find(food => food.name.startsWith('Leche entera natural'));
+assert.equal(milk.quantityMode, 'milliliters');
+assert.equal(context.foodQuantityText({ name: milk.name, qty: 2.5 }), '250 ml');
+assert.equal(second.length, foods.length);
+console.log('OK: metas coherentes, totales de registros antiguos, verduras, etiquetas mexicanas y porciones en piezas, gramos y mililitros.');
