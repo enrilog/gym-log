@@ -318,6 +318,7 @@ const TEMPLATES = {
   Superior: [
     ["Levantamiento horizontal hombros unilateral en polea", "kg", "Unilateral · Doble polea (2:1)", ""],
     ["Bíceps predicador en máquina", "kg", "Bilateral 2 manos", "Cuidado bíceps izquierdo"],
+    ["Chest press vertical en máquina", "kg", "En máquina", ""],
     ["Fly pecho en máquina", "kg", "Bilateral en máquina", ""],
     ["Jalón de espalda con barra en polea", "kg", "Bilateral 2 manos · Agarre abierto", ""],
     ["Remo cerrado en máquina", "kg", "Bilateral 2 manos · Agarre neutro", ""],
@@ -342,6 +343,7 @@ function canonicalExerciseName(rawName) {
   if (n.includes("hombros sentado")) return "__EXCLUIDO__";
   if (n.includes("hombros en polea") || n.includes("hombros unilateral en polea")) return "Levantamiento horizontal hombros unilateral en polea";
   if (n.includes("predicador")) return "Bíceps predicador en máquina";
+  if (n.includes("chest press")) return "Chest press vertical en máquina";
   if (n.includes("fly pecho")) return "Fly pecho en máquina";
   if (n.includes("jalón de espalda") || n.includes("jalon de espalda")) return "Jalón de espalda con barra en polea";
   if (n.includes("remo cerrado") || n.includes("remo cerrao")) return "Remo cerrado en máquina";
