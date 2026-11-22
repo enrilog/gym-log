@@ -79,7 +79,19 @@
     .rank-showcase-item,.rank-badge,.tier-chip {color:#3b4050;}
     .rank-badge {display:inline-flex;align-items:center;gap:4px;border-radius:7px;font-size:10px;font-weight:650;padding:5px 7px;white-space:nowrap;}
     .tier-scale {display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:10px;} .tier-chip {display:flex;align-items:center;justify-content:center;gap:2px;border:1px solid transparent;border-radius:6px;padding:5px 1px;font-size:9px;} .tier-chip.current {border-color:var(--accent);}
-    .weight-chart {width:100%;height:145px;margin:14px 0 0;} .chart-range {display:flex;justify-content:space-between;color:var(--muted);font-size:11px;margin:0 4px 20px;}
+    .trend-controls {display:flex;justify-content:space-between;align-items:end;gap:14px;margin-bottom:16px;}
+    .trend-controls>div {min-width:0;flex:1;}
+    .trend-controls>div:only-child {max-width:240px;}
+    .trend-chart {display:block;width:100%;max-width:580px;margin:8px auto 0;color:var(--accent);}
+    .trend-chart text {fill:var(--muted);font-size:12px;}
+    .trend-chart .guide {stroke:var(--border);fill:none;}
+    .trend-chart .target {stroke:var(--muted);stroke-dasharray:5 4;}
+    .trend-empty,.trend-goal {margin:10px 0;color:var(--muted);font-size:14px;}
+    .trend-goal::before {content:"";display:inline-block;width:18px;border-top:2px dashed currentColor;vertical-align:middle;margin-right:6px;}
+    .trend-table {width:100%;border-collapse:collapse;font-size:14px;}
+    .trend-table th,.trend-table td {padding:8px 2px;text-align:left;border-bottom:1px solid var(--border);}
+    .trend-table td:last-child,.trend-table th:last-child {text-align:right;}
+    .measurement-fields {margin-bottom:10px;}
     .nav {position:fixed;bottom:0;left:0;right:0;z-index:40;background:rgba(255,255,255,.94);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid var(--border);padding:7px 10px calc(8px + env(safe-area-inset-bottom));}
     .nav-in {max-width:680px;margin:auto;display:grid;grid-template-columns:repeat(4,1fr);} .nav-b {border:0;background:none;color:var(--dim);padding:6px;min-height:54px;font-size:10px;font-weight:550;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;} .nav-b.active {color:var(--accent);} .nav-b svg {width:22px;height:22px;}
     .toast {position:fixed;bottom:100px;left:50%;transform:translateX(-50%);width:max-content;max-width:90%;padding:12px 18px;border-radius:14px;background:#1d1d1f;color:#fff;opacity:0;pointer-events:none;transition:opacity .2s;z-index:50;font-size:13px;box-shadow:0 4px 20px #0002;} .toast.show {opacity:1;}
@@ -226,19 +238,61 @@
   </section>
 
   <!-- VISTA 3: PROGRESO, TIEMPO Y RANGOS MUNDIALES -->
-  <section id="v-prog" class="view"><div class="page-heading"><div class="eyebrow">Cada semana cuenta</div><h1>Mira cuánto avanzas.</h1><p class="sub">Tu peso, tu fuerza y tu constancia en un solo lugar.</p></div>
+  <section id="v-prog" class="view"><div class="page-heading"><h1>Progreso</h1></div>
+    <div class="trend-controls">
+      <div>
+        <label for="trendPeriod">Periodo de las gráficas</label>
+        <select id="trendPeriod" onchange="renderProgressCharts()">
+          <option value="7">Últimos 7 días</option>
+          <option value="30" selected>Últimos 30 días</option>
+          <option value="90">Últimos 90 días</option>
+          <option value="all">Todo el historial</option>
+        </select>
+      </div>
+    </div>
     <div class="card">
       <div class="sec-h">
-        <span class="sec-t">Peso Corporal (Meta: 65.0 → 75.0 kg)</span>
+        <h2 class="sec-t">Peso corporal</h2>
         <span class="tag up" id="wBadge">65.0 kg</span>
       </div>
+      <div class="sub">Meta: 75 kg</div>
       <div class="bar-bg" style="margin-bottom:10px;"><div id="wBar" class="bar-fg" style="width:5%"></div></div>
-      <div id="weightChart"></div><details class="advanced"><summary>Registrar mi peso</summary><div class="row2" style="margin-bottom:8px;">
-        <input type="date" id="wDate" aria-label="Fecha del peso" />
-        <input type="number" id="wVal" inputmode="decimal" step="0.1" value="65.0" />
-      </div>
-      <button type="button" class="btn" onclick="saveWeight()">Actualizar Peso Corporal</button>
-      </details><details class="advanced"><summary>Ver últimos registros</summary><div id="wList" style="margin-top:10px;"></div></details>
+      <details class="advanced"><summary>Registrar mi peso</summary><div class="row2 measurement-fields">
+        <div><label for="wDate">Fecha del peso</label><input type="date" id="wDate" /></div>
+        <div><label for="wVal">Peso (kg)</label><input type="number" id="wVal" inputmode="decimal" step="0.1" value="65.0" /></div>
+      </div><button type="button" class="btn" onclick="saveWeight()">Actualizar peso corporal</button></details>
+      <div id="weightChart"></div>
+      <details class="advanced"><summary>Ver últimos registros</summary><div id="wList" style="margin-top:10px;"></div></details>
+    </div>
+
+    <div class="card">
+      <div class="sec-h"><h2 class="sec-t">Cintura</h2><span class="tag" id="waistBadge">Sin mediciones</span></div>
+      <details class="advanced"><summary>Registrar mi cintura</summary>
+        <form onsubmit="event.preventDefault(); saveWaist()">
+          <div class="row2 measurement-fields">
+            <div><label for="waistDate">Fecha de la medida</label><input type="date" id="waistDate" required /></div>
+            <div><label for="waistVal">Cintura (cm)</label><input type="number" id="waistVal" inputmode="decimal" min="0.1" step="0.1" placeholder="cm" required /></div>
+          </div>
+          <button type="submit" class="btn">Guardar cintura</button>
+          <p class="sub" style="margin-top:8px;">La cintura se guarda en este navegador.</p>
+        </form>
+      </details>
+      <div id="waistChart"></div>
+    </div>
+
+    <div class="card">
+      <div class="sec-h"><h2 class="sec-t">Ingesta diaria</h2></div>
+      <div class="trend-controls"><div>
+        <label for="nutritionTrendMetric">Indicador</label>
+        <select id="nutritionTrendMetric" onchange="renderDailyNutritionChart()">
+          <option value="cal">Calorías</option>
+          <option value="prot">Proteína</option>
+          <option value="carb">Carbohidratos</option>
+          <option value="fat">Grasas</option>
+        </select>
+      </div></div>
+      <p class="sub">Cada barra suma las comidas registradas en esa fecha.</p>
+      <div id="dailyNutritionChart"></div>
     </div>
 
     <div class="card">
@@ -1023,7 +1077,8 @@ let curSplit = "Superior";
 let workouts = sanitizeWorkoutsList(JSON.parse(localStorage.getItem("gym_cloud_workouts")) || []);
 let foods = loadMergedCatalog();
 let nutLogs = JSON.parse(localStorage.getItem("gym_cloud_nutrilogs")) || {};
-let weights = JSON.parse(localStorage.getItem("gym_cloud_weights")) || [{ date: "2026-11-16", weight: 65.0 }];
+let weights = mergeMeasurements("weight", JSON.parse(localStorage.getItem("gym_cloud_weights")) || [{ date: "2026-11-16", weight: 65.0 }]);
+let waists = mergeMeasurements("waist", JSON.parse(localStorage.getItem("gym_cloud_waists")) || []);
 let sheetUrl = localStorage.getItem("gym_sheets_url_v1") || DEFAULT_SHEET_URL;
 let queue = JSON.parse(localStorage.getItem("gym_sync_queue_v1")) || [];
 let activeDraftKey = "";
@@ -1034,6 +1089,7 @@ function saveLocal() {
   localStorage.setItem("gym_foods_v1", JSON.stringify(foods));
   localStorage.setItem("gym_cloud_nutrilogs", JSON.stringify(nutLogs));
   localStorage.setItem("gym_cloud_weights", JSON.stringify(weights));
+  localStorage.setItem("gym_cloud_waists", JSON.stringify(waists));
   localStorage.setItem("gym_sync_queue_v1", JSON.stringify(queue));
   updateSyncBadge();
 }
@@ -1602,21 +1658,26 @@ function createFood() {
   toast("Platillo guardado en tu catálogo");
 }
 
-// Peso Corporal
+// Mediciones corporales: una lectura por fecha, con prioridad a la última copia.
+function mergeMeasurements(key, ...sources) {
+  const byDate = new Map();
+  for (const row of sources.flat()) {
+    const date = normalizeDate(row.date);
+    const value = Number(row[key]);
+    if (date && Number.isFinite(value) && value > 0) byDate.set(date, { date, [key]: value });
+  }
+  return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+}
+
 function saveWeight() {
-  const date = document.getElementById("wDate").value;
-  const weight = parseFloat(document.getElementById("wVal").value);
-  if (!date || isNaN(weight)) return;
-  const idx = weights.findIndex(w => w.date === date);
-  if (idx >= 0) weights[idx].weight = weight;
-  else weights.push({ date, weight });
-  weights.sort((a, b) => a.date.localeCompare(b.date));
-  saveLocal();
+  const date = normalizeDate(document.getElementById("wDate").value);
+  const weight = document.getElementById("wVal").valueAsNumber;
+  if (!date || !Number.isFinite(weight) || weight <= 0) return toast("Ingresa un peso y una fecha válidos");
+  weights = mergeMeasurements("weight", weights, [{ date, weight }]);
+  enqueue({ type: "weight", payload: { date, weight } });
   renderWeight();
   renderProgressAndRanks();
-
   toast("Peso registrado");
-  enqueue({ type: "weight", payload: { date, weight } });
 }
 
 function renderWeight() {
@@ -1635,6 +1696,26 @@ function renderWeight() {
     r.innerHTML = `<span class="sub">${w.date}</span><b>${w.weight.toFixed(1)} kg (${d >= 0 ? "+"+d : d} kg)</b>`;
     box.appendChild(r);
   });
+}
+
+function saveWaist() {
+  const date = normalizeDate(document.getElementById("waistDate").value);
+  const input = document.getElementById("waistVal");
+  const waist = input.valueAsNumber;
+  if (!date || date > localToday() || !input.validity.valid || !Number.isFinite(waist) || waist <= 0) {
+    return toast("Ingresa una medida y una fecha válidas");
+  }
+  waists = mergeMeasurements("waist", waists, [{ date, waist }]);
+  saveLocal();
+  input.value = "";
+  renderWaist();
+  toast("Cintura registrada");
+}
+
+function renderWaist() {
+  const last = waists.at(-1);
+  document.getElementById("waistBadge").textContent = last ? `${formatNutrition(last.waist)} cm` : "Sin mediciones";
+  renderWaistChart();
 }
 
 // Motor de Progreso Temporal y 8 Rangos con Iconos SVG
@@ -1876,11 +1957,15 @@ async function pullFromSheets() {
         workouts = sanitizeWorkoutsList(merged);
       }
       if (data.nutLogs) nutLogs = mergeNutritionLogs(nutLogs, data.nutLogs);
-      if (Array.isArray(data.weights) && data.weights.length) weights = data.weights;
+      if (Array.isArray(data.weights) && data.weights.length) {
+        const pending = queue.filter(item => item.type === "weight").map(item => item.payload);
+        weights = mergeMeasurements("weight", weights, data.weights, pending);
+      }
       saveLocal();
       renderExList();
       renderNut();
       renderWeight();
+      renderDailyNutritionChart();
       renderProgressAndRanks();
 
 
@@ -1964,17 +2049,101 @@ function renderToday() {
   document.getElementById("todayWorkoutTitle").textContent = sessions.length ? 'Hoy ya avanzaste' : 'Tú eliges la rutina';
   document.getElementById("todayWorkoutNote").textContent = sessions.length ? sessions.map(s=>`Tren ${s.split.toLowerCase()}`).join(' · ')+' registrado' : 'Superior o inferior, cuando estés listo.';
 }
+const CHART_DAY_MS = 86400000;
+const CHART_DATE_FORMAT = new Intl.DateTimeFormat("es-MX", { day: "numeric", month: "short", timeZone: "UTC" });
+
+function dailyNutritionRows(logs, metric) {
+  const totals = new Map();
+  for (const [rawDate, items] of Object.entries(logs)) {
+    const date = normalizeDate(rawDate);
+    if (!date || !Array.isArray(items) || !items.length) continue;
+    totals.set(date, (totals.get(date) || 0) + nutritionTotals(items)[metric]);
+  }
+  return [...totals].sort(([a], [b]) => a.localeCompare(b)).map(([date, value]) => ({ date, value }));
+}
+
+function renderTrendChart(id, series, { label, unit, target, empty }) {
+  const box = document.getElementById(id);
+  const period = document.getElementById("trendPeriod").value;
+  const today = Date.parse(localToday());
+  const isDaily = target !== undefined;
+  const from = period === "all" ? -Infinity : today - (Number(period) - 1) * CHART_DAY_MS;
+  const rows = series.map(row => ({ ...row, timestamp: Date.parse(row.date) }))
+    .filter(row => row.timestamp >= from && row.timestamp <= today);
+  if (!rows.length) {
+    box.innerHTML = `<p class="trend-empty">${empty}</p>`;
+    return;
+  }
+  const first = rows[0];
+  const last = rows.at(-1);
+  const start = Number.isFinite(from) ? from : first.timestamp;
+  const end = Number.isFinite(from) ? today : last.timestamp;
+  const span = (end - start) / CHART_DAY_MS;
+  const values = rows.map(row => row.value);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const padding = Math.max((max - min) * 0.1, 0.3);
+  const bottom = isDaily ? 0 : Math.max(0, min - padding);
+  const top = isDaily ? Math.max(max, target) * 1.1 : max + padding;
+  const left = 56, right = 340, highY = 14, lowY = 140;
+  const x = time => span ? left + ((time - start) / CHART_DAY_MS + 0.5) / (span + 1) * (right - left) : (left + right) / 2;
+  const y = value => lowY - (value - bottom) / (top - bottom) * (lowY - highY);
+  const qty = value => `${formatNutrition(value)} ${unit}`;
+  const barWidth = Math.max(1, Math.min(20, (right - left) / (span + 1) * 0.72));
+  const marks = rows.map(row => {
+    const px = x(row.timestamp), py = y(row.value);
+    const detail = `<title>${row.date} · ${qty(row.value)}</title>`;
+    if (isDaily) {
+      const height = Math.max(2, lowY - py);
+      return `<rect x="${px - barWidth / 2}" y="${lowY - height}" width="${barWidth}" height="${height}" rx="1.5" fill="currentColor">${detail}</rect>`;
+    }
+    return `<circle cx="${px}" cy="${py}" r="3.7" fill="currentColor">${detail}</circle>`;
+  }).join("");
+  const guides = [top, (top + bottom) / 2, bottom].map(value => {
+    const py = y(value);
+    const tick = formatNutrition(isDaily && unit === "kcal" ? Math.round(value) : value);
+    return `<path d="M${left} ${py}H${right}" class="guide"/><text x="${left - 6}" y="${py + 4}" text-anchor="end">${tick}</text>`;
+  }).join("");
+  const dateLabels = span
+    ? `<text x="${left}" y="160">${CHART_DATE_FORMAT.format(start)}</text><text x="${right}" y="160" text-anchor="end">${CHART_DATE_FORMAT.format(end)}</text>`
+    : `<text x="${x(start)}" y="160" text-anchor="middle">${CHART_DATE_FORMAT.format(start)}</text>`;
+  const reference = isDaily ? `<line class="target" x1="${left}" x2="${right}" y1="${y(target)}" y2="${y(target)}"/>` : "";
+  const line = isDaily || rows.length === 1 ? "" : `<polyline points="${rows.map(row => `${x(row.timestamp)},${y(row.value)}`).join(" ")}"
+    fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>`;
+  const dataRows = [...rows].reverse().map(row => `<tr><th scope="row"><time datetime="${row.date}">${row.date}</time></th><td>${qty(row.value)}</td></tr>`).join("");
+  const description = `${label}. Último registro: ${qty(last.value)} el ${last.date}.`;
+  box.innerHTML = `<svg class="trend-chart" viewBox="0 0 360 168" role="img" aria-label="${escapeOption(description)}">
+    ${guides}${reference}${line}${marks}${dateLabels}</svg>
+    ${isDaily ? `<p class="trend-goal">Meta diaria: ${qty(target)}</p>` : ""}
+    <details class="advanced"><summary>Ver datos de la gráfica</summary>
+      <table class="trend-table"><thead><tr><th scope="col">Fecha</th><th scope="col">${label}</th></tr></thead><tbody>${dataRows}</tbody></table>
+    </details>`;
+}
+
 function renderWeightChart() {
-  const box = document.getElementById('weightChart');
-  if (!box) return;
-  const rows = [...weights].filter(w=>normalizeDate(w.date)&&Number.isFinite(Number(w.weight))).sort((a,b)=>a.date.localeCompare(b.date)).slice(-30);
-  if (rows.length<2) { box.innerHTML = '<p class="sub" style="margin:16px 0;">Tu gráfica aparecerá al registrar un segundo peso.</p>'; return; }
-  const values=rows.map(w=>Number(w.weight));
-  const min=Math.min(...values)-.5,max=Math.max(...values)+.5;
-  const start=new Date(rows[0].date+'T12:00:00').getTime(),end=new Date(rows.at(-1).date+'T12:00:00').getTime();
-  const points=rows.map(row=>[12+(end===start?0:(new Date(row.date+'T12:00:00').getTime()-start)/(end-start))*476,130-(Number(row.weight)-min)/(max-min)*110]);
-  const line=points.map(p=>p.join(',')).join(' ');
-  box.innerHTML=`<svg class="weight-chart" viewBox="0 0 500 150" role="img" aria-label="Evolución de peso: de ${values[0]} a ${values.at(-1)} kilogramos"><path d="M12 130H488M12 75H488M12 20H488" stroke="#e5e5ea" fill="none"/><polygon points="12,145 ${line} 488,145" fill="#eaf3ff"/><polyline points="${line}" fill="none" stroke="#0071e3" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>${points.map(([x,y])=>`<circle cx="${x}" cy="${y}" r="4" fill="#0071e3"/>`).join('')}</svg><div class="chart-range"><span>${escapeOption(rows[0].date)} · ${values[0]} kg</span><span>${escapeOption(rows.at(-1).date)} · ${values.at(-1)} kg</span></div>`;
+  renderTrendChart("weightChart", weights.map(({ date, weight: value }) => ({ date, value })), {
+    label: "Peso corporal", unit: "kg", empty: "Sin registros de peso en este periodo."
+  });
+}
+
+function renderWaistChart() {
+  renderTrendChart("waistChart", waists.map(({ date, waist: value }) => ({ date, value })), {
+    label: "Cintura", unit: "cm", empty: "Sin mediciones de cintura en este periodo."
+  });
+}
+
+function renderDailyNutritionChart() {
+  const metric = document.getElementById("nutritionTrendMetric").value;
+  const goal = NUTRITION_GOALS[metric];
+  renderTrendChart("dailyNutritionChart", dailyNutritionRows(nutLogs, metric), {
+    ...goal, label: metric === "cal" ? "Calorías" : goal.label, empty: "Sin comidas registradas en este periodo."
+  });
+}
+
+function renderProgressCharts() {
+  renderWeightChart();
+  renderWaistChart();
+  renderDailyNutritionChart();
 }
 function goTab(name) {
   document.querySelectorAll(".view").forEach(view=>view.classList.toggle('active',view.id==='v-'+name));
@@ -1984,6 +2153,7 @@ function goTab(name) {
     if(active) button.setAttribute('aria-current','page'); else button.removeAttribute('aria-current');
   });
   if(name==='today') renderToday();
+  if(name==='prog') renderProgressCharts();
   window.scrollTo(0,0);
 }
 
@@ -2000,6 +2170,8 @@ window.onload = () => {
   document.getElementById("gDate").value = t;
   document.getElementById("nDate").value = t;
   document.getElementById("wDate").value = t;
+  document.getElementById("waistDate").value = t;
+  document.getElementById("waistDate").max = t;
   if (!localStorage.getItem("gym_sheets_url_v1")) {
     localStorage.setItem("gym_sheets_url_v1", DEFAULT_SHEET_URL);
   }
@@ -2010,6 +2182,7 @@ window.onload = () => {
   renderFoodSel();
   renderNut();
   renderWeight();
+  renderWaist();
   renderProgressAndRanks();
 
 
