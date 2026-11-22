@@ -45,3 +45,43 @@ assert.equal(milk.quantityMode, 'milliliters');
 assert.equal(context.foodQuantityText({ name: milk.name, qty: 2.5 }), '250 ml');
 assert.equal(second.length, foods.length);
 console.log('OK: metas coherentes, totales de registros antiguos, verduras, etiquetas mexicanas y porciones en piezas, gramos y mililitros.');
+
+const nutCategory = 'Nueces, cacahuates y semillas';
+const pecan = foods.find(food => food.name === 'Nuez pecana natural (100 g)');
+assert.equal(pecan.cat, nutCategory);
+assert.equal(pecan.defaultAmount, 25);
+assert.deepEqual(pecan.portionPreset, { label: 'Usar 12 mitades (25 g)', amount: 25 });
+assert.match(pecan.searchTerms, /pecanas.*pacana/);
+assert.deepEqual(JSON.parse(JSON.stringify(context.foodNutritionForPortion(pecan, 0.25))),
+  { cal: 173, prot: 2.3, carb: 3.5, fat: 18 });
+const nutFoods = foods.filter(food => food.cat === nutCategory);
+const nutNames = nutFoods.map(food => context.foodKey(food.name));
+assert.equal(new Set(nutNames).size, nutNames.length);
+for (const name of ['avellanas naturales', 'nuez de la india natural', 'nuez de macadamia natural', 'nuez de brasil natural',
+  'pinones secos sin cascara', 'cacahuates naturales sin sal', 'cacahuates tostados en seco sin sal',
+  'cacahuates tostados en seco con sal', 'cacahuates tostados en aceite con sal', 'cacahuates cocidos con sal',
+  'cacahuates japoneses mafer clasico', 'semillas de girasol secas sin cascara', 'pepitas de calabaza tostadas sin sal',
+  'crema de almendra natural sin sal', 'mezcla de nueces tostadas con cacahuate y sal']) assert(nutNames.includes(name), name);
+assert.equal(nutFoods.find(food => food.name.startsWith('Mantequilla de maní')).quantityMode, 'spoons');
+
+const catalogNodes = new Map();
+const catalogNode = id => {
+  if (!catalogNodes.has(id)) catalogNodes.set(id, { dataset: {}, value: '', replaceChildren() {}, append() {} });
+  return catalogNodes.get(id);
+};
+context.document = { getElementById: catalogNode, createElement: () => ({}) };
+catalogNode('fSel').value = String(foods.indexOf(pecan));
+context.configureFoodQuantity(true);
+assert.match(catalogNode('fQty').innerHTML, /<option value="25" selected>/);
+catalogNode('fQty').value = '40';
+context.prevFood();
+assert.match(catalogNode('fPrev').textContent, /^40 g · 276 kcal/);
+assert.equal(catalogNode('foodPortionPreset').hidden, false);
+context.useFoodPortionPreset();
+assert.equal(Number(catalogNode('fQty').value), 25);
+assert.match(catalogNode('fPrev').textContent, /^25 g · 173 kcal/);
+catalogNode('fSel').value = String(foods.indexOf(salmas));
+context.prevFood();
+assert.equal(catalogNode('foodPortionPreset').hidden, true);
+assert.deepEqual(JSON.parse(vm.runInContext('JSON.stringify(nutLogs)', context)), history);
+console.log('OK: categoría de nueces y semillas, preparaciones distintas, medida de pecanas e historial intacto.');
