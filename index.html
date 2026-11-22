@@ -58,6 +58,23 @@
     .meal-option p {margin-top:4px;font-size:13px;color:var(--muted);}
     .meal-option .btn {width:auto;min-height:44px;padding:7px 11px;flex-shrink:0;}
     .meal-note {margin:8px 0 0;}
+    .meal-toolbar {display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px;margin-bottom:12px;}
+    .meal-toolbar .seg {flex:1 1 190px;margin-bottom:0;}
+    .meal-toolbar .btn,.template-actions .pill {width:auto;min-height:44px;}
+    .nutrition-complete,.template-ingredient label {display:flex;align-items:center;gap:9px;color:var(--text);}
+    .nutrition-complete {margin:12px 0 6px;}
+    .nutrition-complete input,.template-ingredient input[type=checkbox] {width:20px;height:20px;flex-shrink:0;accent-color:var(--accent);}
+    .template-actions {display:flex;flex-wrap:wrap;align-items:center;gap:7px;}
+    #forgetFoodPortion[hidden] {display:none;}
+    .template-list .item-row {flex-wrap:wrap;}
+    .template-dialog {margin:auto;width:min(94vw,510px);max-height:88vh;max-height:88dvh;overflow:auto;padding:20px;border:1px solid var(--border);border-radius:16px;color:var(--text);}
+    .template-ingredient {display:grid;grid-template-columns:minmax(0,1fr) 110px;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--border);}
+    .template-ingredient span {overflow-wrap:anywhere;}
+    .template-ingredient input[type=number] {margin-top:3px;}
+    .weekly-periods {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:12px 0;}
+    .weekly-periods div {padding:10px;border-radius:10px;background:var(--input);}
+    .weekly-periods b {display:block;}
+    .weekly-guidance {margin:10px 0;}
     @media(max-width:420px){.meal-option {align-items:flex-start;flex-direction:column;gap:8px;}}
     .training-preview {display:flex;align-items:center;gap:16px;margin:16px 0 20px;} .preview-icon {display:grid;place-items:center;width:50px;height:50px;border-radius:15px;background:#eaf3ff;color:var(--accent);flex-shrink:0;}
     .rest-preference {display:flex;align-items:center;gap:10px;margin:16px 0 0;font-size:14px;}
@@ -158,9 +175,12 @@
         <h2 class="sec-t" id="mealTitle">¿Qué puedo comer ahora?</h2>
         <span class="tag" id="mealOccasion"></span>
       </div>
-      <div class="seg" role="group" aria-label="Dónde vas a comer">
-        <button type="button" id="mealSchool" aria-pressed="false" onclick="setMealLocation('school')">Cafetería</button>
-        <button type="button" id="mealHome" aria-pressed="false" onclick="setMealLocation('home')">Casa</button>
+      <div class="meal-toolbar">
+        <div class="seg" role="group" aria-label="Dónde vas a comer">
+          <button type="button" id="mealSchool" aria-pressed="false" onclick="setMealLocation('school')">Cafetería</button>
+          <button type="button" id="mealHome" aria-pressed="false" onclick="setMealLocation('home')">Casa</button>
+        </div>
+        <button type="button" class="btn btn-sec" id="mealRefresh" onclick="refreshMealSuggestions()" aria-controls="mealOptions">Refrescar opciones</button>
       </div>
       <p class="meal-gap" id="mealGap"></p>
       <div id="mealOptions"></div>
@@ -216,6 +236,8 @@
         <input type="date" id="nDate" style="width:auto; padding:5px 8px; font-size:16px;" aria-label="Fecha de comidas" onchange="renderNut()" />
       </div>
       <div class="nutrition-metrics" id="dailyNutrition"></div>
+      <label class="nutrition-complete" for="nutritionDayComplete"><input type="checkbox" id="nutritionDayComplete" onchange="setNutritionDayComplete(this.checked)" /> Terminé de registrar este día</label>
+      <p class="sub">La revisión semanal usa los días que marques como completos.</p>
       <details class="nutrition-reference">
         <summary>Metas de fibra, calcio y vitamina D</summary>
         <dl class="sub">
@@ -231,6 +253,13 @@
       <div class="sec-h"><span class="sec-t">Tus favoritos</span></div>
       <div class="sub" style="margin-bottom:8px;">Últimos 10 días, incluido hoy. Toca una comida y elige cuántas unidades comiste.</div>
       <div id="quickFoods" class="chip-grid"></div>
+    </div>
+
+    <div class="card">
+      <div class="sec-h"><h2 class="sec-t">Comidas guardadas</h2></div>
+      <div id="mealTemplates" class="template-list"></div>
+      <button type="button" class="btn btn-sec" id="createMealTemplate" onclick="openMealTemplate('create')">Guardar desde el registro de esta fecha</button>
+      <p class="sub" style="margin-top:8px;">Las comidas guardadas y porciones habituales se conservan en este dispositivo.</p>
     </div>
 
     <div class="card" id="foodCatalog">
@@ -258,6 +287,11 @@
       <div class="sub" style="margin-top:8px;">Pesa la comida lista para comer, sin recipiente. Los nutrientes son estimaciones según la preparación; yogur y mantequilla de maní se miden en cucharadas soperas.</div>
       <div id="fPrev" class="sub" style="margin-top:8px;"></div>
       <div id="fSource" class="sub"></div>
+      <div class="template-actions" style="margin-top:8px;">
+        <button type="button" class="pill" id="rememberFoodPortion" onclick="rememberUsualPortion()">Guardar porción habitual</button>
+        <button type="button" class="pill" id="forgetFoodPortion" onclick="forgetUsualPortion()" hidden>Quitar habitual</button>
+        <span class="sub" id="usualPortionInfo"></span>
+      </div>
     </div>
 
     <div class="card">
@@ -281,6 +315,20 @@
 
   <!-- VISTA 3: PROGRESO, TIEMPO Y RANGOS MUNDIALES -->
   <section id="v-prog" class="view"><div class="page-heading"><h1>Progreso</h1></div>
+    <div class="card" aria-labelledby="weeklyTitle">
+      <div class="sec-h"><h2 class="sec-t" id="weeklyTitle">Revisión semanal hacia los 75 kg</h2></div>
+      <p class="sub">Compara dos periodos de 7 días cerrados. Ritmo objetivo de +0.25 a +0.35 kg por semana.</p>
+      <div id="weeklyReview"></div>
+      <details class="advanced">
+        <summary>Ajustar meta de calorías</summary>
+        <form onsubmit="saveCalorieGoal(event)">
+          <label for="calorieGoalInput">Meta diaria (kcal)</label>
+          <input type="number" id="calorieGoalInput" min="1280" step="1" inputmode="numeric" required oninput="previewCalorieGoal()" />
+          <p class="sub" id="calorieGoalPreview" style="margin:8px 0;"></p>
+          <button type="submit" class="btn btn-sec">Confirmar meta</button>
+        </form>
+      </details>
+    </div>
     <div class="trend-controls">
       <div>
         <label for="trendPeriod">Periodo de las gráficas</label>
@@ -413,6 +461,20 @@
     </div>
   </form>
 </dialog>
+<dialog id="mealTemplateDialog" class="template-dialog" aria-labelledby="mealTemplateTitle">
+  <form onsubmit="submitMealTemplate(event)">
+    <h2 class="sec-t" id="mealTemplateTitle"></h2>
+    <p class="sub" id="mealTemplateContext" style="margin:6px 0 10px;"></p>
+    <div id="mealTemplateNameField"><label for="mealTemplateName">Nombre</label>
+      <input id="mealTemplateName" type="text" maxlength="60" placeholder="Mi desayuno" />
+    </div>
+    <div id="mealTemplateIngredients"></div>
+    <div class="actions" style="margin-top:12px;">
+      <button type="submit" class="btn" id="mealTemplateSubmit">Guardar</button>
+      <button type="button" class="btn btn-sec" onclick="document.getElementById('mealTemplateDialog').close()">Cancelar</button>
+    </div>
+  </form>
+</dialog>
 
 <nav class="nav" aria-label="Navegación principal"><div class="nav-in"><button type="button" class="nav-b active" data-tab="today" onclick="goTab('today')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg><span>Hoy</span></button><button type="button" class="nav-b " data-tab="gym" onclick="goTab('gym')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 5v14M3 8v8M18 5v14M21 8v8M6 12h12"/></svg><span>Entrenar</span></button><button type="button" class="nav-b " data-tab="nut" onclick="goTab('nut')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3v7a3 3 0 0 0 6 0V3M8 3v18M19 3v18M19 3c-5 3-5 9 0 9"/></svg><span>Comidas</span></button><button type="button" class="nav-b " data-tab="prog" onclick="goTab('prog')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4v16h16M7 15l5-5 4 3 5-8"/></svg><span>Progreso</span></button></div></nav>
 
@@ -425,6 +487,9 @@ const NUTRITION_GOALS = {
   carb: { label: "Carbohidratos", target: 355, unit: "g" },
   fat: { label: "Grasas", target: 80, unit: "g" }
 };
+const NUTRITION_PREFERENCES_KEY = "gym_nutrition_preferences_v1";
+let nutritionPreferences = JSON.parse(localStorage.getItem(NUTRITION_PREFERENCES_KEY) || "{}");
+applyCalorieGoal(nutritionPreferences.calorieGoal ?? NUTRITION_GOALS.cal.target);
 
 const TEMPLATES = {
   Superior: [
@@ -766,6 +831,7 @@ const WEIGHT_REFERENCES = {
   "Sope o Huarache sencillo con frijoles y queso": 100,
   "Sope o Huarache con bistec / pollo / cecina": 100
 };
+const ESTIMATED_DISH_CATEGORIES = new Set(["Antojitos y Maíz", "Barbacoa, Tacos y Tortas", "Guisados y Proteínas", "Sopas, Leguminosas y Arroz"]);
 function portionFood(raw) {
   if (raw.quantityMode) return raw;
   const base = raw.name.replace(/\s*\([^)]*\)/g, '').trim();
@@ -782,7 +848,7 @@ function portionFood(raw) {
     name = 'Mantequilla de maní natural (1 cucharada sopera, aprox. 16 g)';
     quantityMode = 'spoons';
   }
-  const item = {...raw, name, quantityMode};
+  const item = {...raw, name, quantityMode, ...(grams ? { referenceGrams: grams } : {})};
   for (const field of ['cal','prot','carb','fat']) item[field] = +(Number(raw[field] || 0) * multiplier).toFixed(2);
   return item;
 }
@@ -794,7 +860,7 @@ function configureFoodQuantity(reset = false) {
   const selection = food?.name || "";
   if (reset || selector.dataset.mode !== mode || selector.dataset.food !== selection) {
     const values = Array.from({ length: measured ? 2000 : 30 }, (_, i) => i + 1);
-    selector.innerHTML = optionsHTML(values, food?.defaultAmount ?? (measured ? 100 : 1));
+    selector.innerHTML = optionsHTML(values, usualPortion(food) ?? food?.defaultAmount ?? (measured ? 100 : 1));
     selector.dataset.mode = mode;
     selector.dataset.food = selection;
   }
@@ -804,7 +870,48 @@ function configureFoodQuantity(reset = false) {
 }
 function foodMultiplier(food) {
   const amount = Number(document.getElementById('fQty').value);
-  return ["grams", "milliliters"].includes(food.quantityMode) ? amount / 100 : amount;
+  return amount / catalogPortionFactor(food);
+}
+function catalogPortionFactor(food) {
+  return ["grams", "milliliters"].includes(food.quantityMode) ? 100 : 1;
+}
+function usualPortionKey(food) {
+  return JSON.stringify([foodKey(food.name), food.quantityMode || "units"]);
+}
+function usualPortion(food) {
+  if (!food) return undefined;
+  const amount = nutritionPreferences.usualPortions?.[usualPortionKey(food)];
+  return Number.isInteger(amount) && amount > 0 && amount <= (catalogPortionFactor(food) === 100 ? 2000 : 30)
+    ? amount : undefined;
+}
+function saveNutritionPreferences(patch) {
+  try {
+    const latest = JSON.parse(localStorage.getItem(NUTRITION_PREFERENCES_KEY) || "{}");
+    const next = { ...latest, ...patch };
+    localStorage.setItem(NUTRITION_PREFERENCES_KEY, JSON.stringify(next));
+    nutritionPreferences = next;
+    return true;
+  } catch {
+    toast("No se pudo guardar la preferencia en este dispositivo");
+    return false;
+  }
+}
+function rememberUsualPortion() {
+  const food = foods[document.getElementById("fSel").value];
+  const amount = Number(document.getElementById("fQty").value);
+  if (!food || !Number.isInteger(amount) || amount <= 0) return;
+  const usualPortions = { ...nutritionPreferences.usualPortions, [usualPortionKey(food)]: amount };
+  if (!saveNutritionPreferences({ usualPortions })) return;
+  prevFood();
+  toast("Porción habitual guardada");
+}
+function forgetUsualPortion() {
+  const food = foods[document.getElementById("fSel").value];
+  if (!food) return;
+  const usualPortions = { ...nutritionPreferences.usualPortions };
+  delete usualPortions[usualPortionKey(food)];
+  if (!saveNutritionPreferences({ usualPortions })) return;
+  prevFood();
 }
 function foodNutritionForPortion(food, quantity) {
   const roundGram = value => Math.round(value * 10 + 1e-9) / 10;
@@ -1034,7 +1141,7 @@ const PREPARED_FOODS = [
     ["Gelatina de postre regular", 60, 1.22, 14.19, 0, ""], // FNDDS 91501010
   ]],
 ].flatMap(([cat, rows]) => rows.map(([name, cal, prot, carb, fat, searchTerms, defaultAmount, note]) => ({
-  cat, name: name + " (100 g)", cal, prot, carb, fat, searchTerms, defaultAmount, note,
+  cat, name: name + " (100 g)", cal, prot, carb, fat, searchTerms, defaultAmount, note, estimatedPreparation: true,
   quantityMode: "grams", source: "fndds"
 })));
 
@@ -1834,11 +1941,22 @@ function prevFood() {
   const q = f ? foodMultiplier(f) : 0;
   const prevEl = document.getElementById("fPrev");
   const sourceEl = document.getElementById("fSource");
+  const usual = usualPortion(f);
+  document.getElementById("rememberFoodPortion").disabled = !f || !q;
+  document.getElementById("forgetFoodPortion").hidden = usual === undefined;
+  document.getElementById("usualPortionInfo").textContent = usual === undefined ? ""
+    : `Habitual: ${foodQuantityText({ name: f.name, qty: usual / catalogPortionFactor(f) })}`;
   sourceEl.replaceChildren();
   if (f) {
     const { cal, prot, carb, fat } = foodNutritionForPortion(f, q);
     prevEl.textContent = `${foodQuantityText({ name: f.name, qty: q })} · ${cal} kcal · ${prot.toFixed(1)} g proteína · ${carb.toFixed(1)} g carbohidratos · ${fat.toFixed(1)} g grasas${f.pieceGrams ? ` · ${f.pieceGrams} g aprox. por pieza` : ""}`;
     const source = Object.hasOwn(FOOD_SOURCES, f.source) ? FOOD_SOURCES[f.source] : null;
+    const estimated = f.estimatedPreparation || ESTIMATED_DISH_CATEGORIES.has(f.cat);
+    if (estimated) {
+      const grams = f.referenceGrams ?? (f.quantityMode === "grams" ? f.defaultAmount : null);
+      sourceEl.append(grams ? `Porción de referencia: ${grams} g · Estimado por preparación` : "Estimado por preparación");
+      if (f.note || source) sourceEl.append(" · ");
+    }
     if (f.note) sourceEl.append(f.note);
     if (source) {
       const link = document.createElement("a");
@@ -1871,6 +1989,105 @@ function quickFood(name, cal, prot, carb, fat, qty = 1) {
   renderNut();
 
   toast(`+${cal} kcal guardadas en este dispositivo`);
+}
+
+let mealTemplateEditor;
+
+function ingredientFromLog({ name, qty, cal, prot, carb, fat }) {
+  return { base: { name, qty, cal, prot, carb, fat }, qty };
+}
+
+function mealIngredientPortion({ base, qty }) {
+  return qty === base.qty ? { ...base } :
+    { name: base.name, qty, ...foodNutritionForPortion(base, qty / base.qty) };
+}
+
+function renderMealTemplates(list) {
+  const box = document.getElementById("mealTemplates");
+  const templates = nutritionPreferences.mealTemplates || [];
+  box.innerHTML = templates.length ? "" : '<p class="sub" style="margin-bottom:8px;">Selecciona alimentos de un día registrado para guardar tu primera comida.</p>';
+  for (const template of templates) {
+    const row = document.createElement("div");
+    row.className = "item-row";
+    const totals = nutritionTotals(template.ingredients.map(mealIngredientPortion));
+    const count = template.ingredients.length;
+    row.innerHTML = `<div><b>${escapeOption(template.name)}</b>
+      <p class="sub">${count} ${count === 1 ? "alimento" : "alimentos"} · ${formatNutrition(totals.cal)} kcal · ${formatNutrition(totals.prot)} g de proteína</p></div>
+      <div class="template-actions"><button type="button" class="pill" data-template-log>Registrar</button>
+      <button type="button" class="pill" data-template-edit>Editar</button><button type="button" class="pill" data-template-remove>Quitar</button></div>`;
+    row.querySelector("[data-template-log]").onclick = () => openMealTemplate("log", template);
+    row.querySelector("[data-template-edit]").onclick = () => openMealTemplate("edit", template);
+    row.querySelector("[data-template-remove]").onclick = () => {
+      if (!window.confirm(`¿Quitar «${template.name}» de las comidas guardadas?`)) return;
+      if (saveNutritionPreferences({ mealTemplates: templates.filter(item => item.id !== template.id) })) renderNut();
+    };
+    box.appendChild(row);
+  }
+  document.getElementById("createMealTemplate").disabled = !list.some(item => Number(item.qty) > 0);
+}
+
+function openMealTemplate(mode, template) {
+  const date = normalizeDate(document.getElementById("nDate").value);
+  if (!date) return toast("Selecciona una fecha válida");
+  const create = mode === "create";
+  const log = mode === "log";
+  const ingredients = create ? (nutLogs[date] || []).filter(item => Number(item.qty) > 0).map(ingredientFromLog) : template.ingredients;
+  if (!ingredients.length) return;
+  mealTemplateEditor = { mode, date, ingredients, id: template?.id };
+  document.getElementById("mealTemplateTitle").textContent = create ? "Guardar comida" : log ? template.name : "Editar comida guardada";
+  document.getElementById("mealTemplateContext").textContent = log ? `Ajusta los alimentos para el registro del ${date}.`
+    : create ? `Elige los alimentos del ${date} que quieres guardar juntos.` : "Elige los alimentos y porciones habituales de esta comida.";
+  document.getElementById("mealTemplateNameField").hidden = log;
+  const name = document.getElementById("mealTemplateName");
+  name.disabled = log;
+  name.value = template?.name || "";
+  document.getElementById("mealTemplateSubmit").textContent = log ? "Registrar comida" : "Guardar comida";
+  const container = document.getElementById("mealTemplateIngredients");
+  container.innerHTML = ingredients.map(({ base, qty }) => {
+    const measured = base.name.match(/\(100 (g|ml)\)$/);
+    const unit = measured?.[1] ?? "porciones";
+    return `<div class="template-ingredient" data-ingredient data-factor="${measured ? 100 : 1}">
+      <label><input type="checkbox" data-include ${create ? "" : "checked"} /> <span>${escapeOption(base.name)}</span></label>
+      <div><span class="sub">${unit}</span>
+        <input type="number" data-quantity min="0.001" inputmode="decimal" step="any" required ${create ? "disabled" : ""}
+          aria-label="${escapeOption(`Cantidad de ${base.name} (${unit})`)}" value="${+(qty * (measured ? 100 : 1)).toFixed(3)}" /></div>
+    </div>`;
+  }).join("");
+  for (const row of container.querySelectorAll("[data-ingredient]")) {
+    const include = row.querySelector("[data-include]");
+    include.onchange = () => { row.querySelector("[data-quantity]").disabled = !include.checked; };
+  }
+  document.getElementById("mealTemplateDialog").showModal();
+}
+
+function submitMealTemplate(event) {
+  event.preventDefault();
+  const { mode, date, id, ingredients } = mealTemplateEditor;
+  const selected = [...document.querySelectorAll("#mealTemplateIngredients [data-ingredient]")].flatMap((row, index) => {
+    if (!row.querySelector("[data-include]").checked) return [];
+    return [{ ...ingredients[index], qty: row.querySelector("[data-quantity]").valueAsNumber / Number(row.dataset.factor) }];
+  });
+  if (!selected.length || selected.some(item => !Number.isFinite(item.qty) || item.qty <= 0)) {
+    return toast("Selecciona al menos un alimento y una cantidad válida");
+  }
+  if (mode === "log") {
+    const operations = selected.map(ingredient => ({
+      type: "nutrition", date, payload: { id: newRecordId(), ...mealIngredientPortion(ingredient) }
+    }));
+    if (!enqueueOperations(operations)) return;
+    toast("Comida registrada en este dispositivo");
+  } else {
+    const name = document.getElementById("mealTemplateName").value.trim();
+    if (!name) return toast("Ponle un nombre a la comida");
+    const template = { id: id || newRecordId(), name, ingredients: selected };
+    const templates = nutritionPreferences.mealTemplates || [];
+    const mealTemplates = mode === "create" ? [...templates, template] : templates.map(item => item.id === id ? template : item);
+    if (!saveNutritionPreferences({ mealTemplates })) return;
+    toast("Comida guardada");
+  }
+  document.getElementById("mealTemplateDialog").close();
+  renderNut();
+  renderDailyNutritionChart();
 }
 
 function delFood(date, id) {
@@ -1914,6 +2131,10 @@ function renderNut() {
   renderQuickFoods();
   const d = document.getElementById("nDate").value;
   const list = nutLogs[d] || [];
+  const complete = document.getElementById("nutritionDayComplete");
+  complete.disabled = !list.length || !normalizeDate(d) || d > localToday();
+  complete.checked = !complete.disabled && Boolean(nutritionPreferences.completeDays?.[d]);
+  renderMealTemplates(list);
   const box = document.getElementById("fList");
   box.innerHTML = list.length ? "" : `<div class="sub">Sin registros para esta fecha.</div>`;
   list.forEach(it => {
@@ -1928,6 +2149,7 @@ function renderNut() {
     box.appendChild(r);
   });
   renderNutritionMetrics("dailyNutrition", nutritionTotals(list), ["cal", "prot", "carb", "fat"]);
+  renderWeeklyReview();
 }
 
 function createFood() {
@@ -1974,6 +2196,7 @@ function saveWeight() {
 function renderWeight() {
   renderToday();
   renderWeightChart();
+  renderWeeklyReview();
   const last = weights[weights.length - 1] || { weight: 65 };
   document.getElementById("wBadge").textContent = `${last.weight.toFixed(1)} kg`;
   document.getElementById("topWeight").textContent = `Actual: ${last.weight.toFixed(1)} kg · Meta: 75.0 kg`;
@@ -2361,17 +2584,27 @@ function mergeNutritionLogs(local, remote, deletedIds) {
 }
 
 function enqueue(item) {
-  const order = Math.max(Date.now() * 1000, lastOperationTime + 1, (pendingOperations().at(-1)?.order || 0) + 1);
-  lastOperationTime = order;
-  const operation = { ...item, id: newRecordId(), order };
+  return enqueueOperations([item]);
+}
+
+function enqueueOperations(items) {
+  let order = Math.max(Date.now() * 1000, lastOperationTime + 1, (pendingOperations().at(-1)?.order || 0) + 1);
+  const operations = items.map(item => ({ ...item, id: newRecordId(), order: order++ }));
+  const saved = [];
   try {
-    localStorage.setItem(PENDING_PREFIX + operation.id, JSON.stringify(operation));
+    for (const operation of operations) {
+      const key = PENDING_PREFIX + operation.id;
+      localStorage.setItem(key, JSON.stringify(operation));
+      saved.push(key);
+    }
   } catch {
+    saved.forEach(key => localStorage.removeItem(key));
     toast("No se pudo guardar en este dispositivo. Revisa el espacio disponible.");
     return false;
   }
-  applyPendingOperation(operation);
-  try { saveLocal(); } catch { updateSyncBadge(); } // The operation itself is already durable.
+  lastOperationTime = order - 1;
+  operations.forEach(applyPendingOperation);
+  try { saveLocal(); } catch { updateSyncBadge(); } // Las operaciones ya están en la cola persistente.
   syncWithSheets();
   return true;
 }
@@ -2480,6 +2713,7 @@ function downloadBackup() {
     customFoods: foods.filter(food => food.cat === "Mis Platillos Personalizados"), drafts,
     trainingPreferences: { loadSteps: JSON.parse(localStorage.getItem(LOAD_STEPS_KEY) || "{}"),
       restTimerEnabled: localStorage.getItem(REST_PREFERENCE_KEY) === "1" },
+    nutritionPreferences,
     pending: pendingOperations() };
   const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }));
   const link = document.createElement("a");
@@ -2541,11 +2775,113 @@ function nutritionTotals(items) {
     key, items.reduce((sum, item) => sum + (Number(item[key]) || 0), 0)
   ]));
 }
+
+function carbohydrateGoal(calories) {
+  return (calories - NUTRITION_GOALS.prot.target * 4 - NUTRITION_GOALS.fat.target * 9) / 4;
+}
+
+function applyCalorieGoal(calories) {
+  if (!Number.isSafeInteger(calories) || carbohydrateGoal(calories) < 0) return false;
+  NUTRITION_GOALS.cal.target = calories;
+  NUTRITION_GOALS.carb.target = carbohydrateGoal(calories);
+  return true;
+}
+
+function previewCalorieGoal() {
+  const value = document.getElementById("calorieGoalInput").valueAsNumber;
+  document.getElementById("calorieGoalPreview").textContent = Number.isSafeInteger(value) && carbohydrateGoal(value) >= 0
+    ? `Carbohidratos: ${formatNutrition(carbohydrateGoal(value))} g · Proteína: ${NUTRITION_GOALS.prot.target} g · Grasas: ${NUTRITION_GOALS.fat.target} g`
+    : "Ingresa una meta válida para calcular los carbohidratos.";
+}
+
+function saveCalorieGoal(event) {
+  event.preventDefault();
+  const input = document.getElementById("calorieGoalInput");
+  const value = input.valueAsNumber;
+  if (!Number.isSafeInteger(value) || carbohydrateGoal(value) < 0) return toast("Ingresa una meta válida");
+  if (value === NUTRITION_GOALS.cal.target) return;
+  if (!saveNutritionPreferences({ calorieGoal: value })) return;
+  applyCalorieGoal(value);
+  renderNut();
+  renderDailyNutritionChart();
+  toast("Meta diaria actualizada");
+}
+
+function setNutritionDayComplete(complete) {
+  const date = normalizeDate(document.getElementById("nDate").value);
+  if (!date || date > localToday() || !nutLogs[date]?.length) return;
+  const completeDays = { ...nutritionPreferences.completeDays };
+  if (complete) completeDays[date] = true;
+  else delete completeDays[date];
+  if (!saveNutritionPreferences({ completeDays })) {
+    document.getElementById("nutritionDayComplete").checked = !complete;
+    return;
+  }
+  renderWeeklyReview();
+}
+
+const WEEKLY_GAIN_RANGE = { min: 0.25, max: 0.35 };
+const WEEKLY_MIN_WEIGH_INS = 3;
+const WEEKLY_MIN_COMPLETE_DAYS = 4;
+
+function weeklyNutritionReview(weightRows, logs, completeDays, today) {
+  const startOfToday = Date.parse(today);
+  const cleanWeights = mergeMeasurements("weight", weightRows);
+  const periods = Array.from({ length: 3 }, (_, week) => {
+    const from = new Date(startOfToday - (week + 1) * 7 * CHART_DAY_MS).toISOString().slice(0, 10);
+    const to = new Date(startOfToday - (week * 7 + 1) * CHART_DAY_MS).toISOString().slice(0, 10);
+    const weighIns = cleanWeights.filter(row => row.date >= from && row.date <= to);
+    const days = Object.keys(completeDays).filter(date => completeDays[date] && date >= from && date <= to && logs[date]?.length);
+    const calories = days.reduce((sum, date) => sum + nutritionTotals(logs[date]).cal, 0);
+    return { from, to, weighIns: weighIns.length, days: days.length,
+      averageWeight: weighIns.length ? weighIns.reduce((sum, row) => sum + row.weight, 0) / weighIns.length : null,
+      averageCalories: days.length ? Math.round(calories / days.length) : null };
+  });
+  const [current, previous, oldest] = periods;
+  const weightChange = (recent, earlier) => [recent, earlier].every(period => period.weighIns >= WEEKLY_MIN_WEIGH_INS)
+    ? +(recent.averageWeight - earlier.averageWeight).toFixed(2) : null;
+  const delta = weightChange(current, previous);
+  const priorDelta = weightChange(previous, oldest);
+  const rate = value => value === null ? "unknown"
+    : value < WEEKLY_GAIN_RANGE.min ? "below" : value > WEEKLY_GAIN_RANGE.max ? "above" : "within";
+  const enoughLogs = periods.slice(0, 2).every(period => period.days >= WEEKLY_MIN_COMPLETE_DAYS);
+  const status = delta === null || !enoughLogs ? "unknown" : rate(delta);
+  const sustained = (status === "below" || status === "above") && status === rate(priorDelta)
+    && oldest.days >= WEEKLY_MIN_COMPLETE_DAYS;
+  return { current, previous, delta, status, sustained, atGoal: current.weighIns >= WEEKLY_MIN_WEIGH_INS && current.averageWeight >= 75 };
+}
+
+function renderWeeklyReview() {
+  const box = document.getElementById("weeklyReview");
+  if (!box) return;
+  const review = weeklyNutritionReview(weights, nutLogs, nutritionPreferences.completeDays || {}, localToday());
+  const change = review.delta === null ? "" : `${review.delta >= 0 ? "+" : ""}${review.delta.toLocaleString("es-MX", {
+    minimumFractionDigits: 2, maximumFractionDigits: 2
+  })} kg/semana`;
+  const status = {
+    unknown: "Datos insuficientes. Registra al menos 3 pesajes y marca 4 días de comidas completos en cada periodo.",
+    within: "El cambio promedio va dentro del ritmo objetivo.",
+    below: "El cambio promedio está por debajo del ritmo objetivo.",
+    above: "El cambio promedio está por encima del ritmo objetivo."
+  };
+  const periodHTML = (period, title) => `<div><b>${title}</b>
+    <p class="sub">${CHART_DATE_FORMAT.format(new Date(period.from))} al ${CHART_DATE_FORMAT.format(new Date(period.to))}</p>
+    <p>${period.averageWeight === null ? "Sin peso promedio" : `${period.averageWeight.toFixed(2)} kg de promedio`}</p>
+    <p class="sub">${period.weighIns} ${period.weighIns === 1 ? "pesaje" : "pesajes"}</p>
+    <p>${period.averageCalories === null ? "Sin promedio de ingesta" : `${formatNutrition(period.averageCalories)} kcal/día`}</p>
+    <p class="sub">${period.days} de 7 días marcados completos</p></div>`;
+  box.innerHTML = `<div class="weekly-periods">${periodHTML(review.current, "Últimos 7 días")}
+    ${periodHTML(review.previous, "7 días anteriores")}</div>
+    ${change ? `<strong>${escapeOption(change)}</strong>` : ""}
+    <p class="sub weekly-guidance">${status[review.status]}</p>
+    ${review.atGoal ? '<p class="sub">El peso promedio ya llegó a 75 kg.</p>' :
+      review.sustained ? `<p class="sub">Dos revisiones consecutivas quedaron fuera del ritmo objetivo. Puedes revisar tu meta de ${formatNutrition(NUTRITION_GOALS.cal.target)} kcal.</p>` : ""}`;
+}
 function renderNutritionMetrics(id, totals, keys) {
   document.getElementById(id).innerHTML = keys.map(key => {
     const { label, target, unit } = NUTRITION_GOALS[key];
     const amount = totals[key];
-    const progress = Math.max(0, Math.min(100, amount / target * 100));
+    const progress = target ? Math.max(0, Math.min(100, amount / target * 100)) : 0;
     return `<div class="nutrition-metric"><div class="sub">${label}</div>
       <div class="metric-value">${formatNutrition(amount)}</div>
       <div class="sub">/ ${formatNutrition(target)} ${unit}</div>
@@ -2612,7 +2948,7 @@ function mealGaps(totals) {
   ]));
 }
 
-function suggestMeals(catalog, options, remaining, window) {
+function suggestMeals(catalog, options, remaining, window, rotation = 0) {
   const snack = window.style === "snack";
   const calorieAim = Math.min(remaining.cal, window.limit);
   const macroAim = {
@@ -2629,13 +2965,14 @@ function suggestMeals(catalog, options, remaining, window) {
   const nutrientKeys = Object.keys(macroAim);
   const penaltyScale = { prot: 35, carb: 65, fat: 18 };
   const byName = new Map(catalog.map((food, index) => [foodKey(food.name), { food, index }]));
-  return options.flatMap(([name, amounts, style]) => {
+  const ranked = options.flatMap(([name, amounts, style]) => {
     const entry = byName.get(foodKey(name));
     if (!entry) return [];
     const { food, index } = entry;
-    const measured = ["grams", "milliliters"].includes(food.quantityMode);
+    const factor = catalogPortionFactor(food);
+    const appropriate = style === window.style || style === "both";
     const portions = amounts.flatMap(amount => {
-      const quantity = measured ? amount / 100 : amount;
+      const quantity = amount / factor;
       const nutrients = foodNutritionForPortion(food, quantity);
       if (nutrients.cal > ceiling || nutrients.cal <= 0) return [];
       const fit = calorieAim >= 45
@@ -2645,17 +2982,53 @@ function suggestMeals(catalog, options, remaining, window) {
         sum + priority(key) * Math.min(nutrients[key] / macroAim[key], 1), 0) / (priorityTotal || 1);
       const excess = nutrientKeys.reduce((sum, key) =>
         sum + Math.max(0, nutrients[key] - remaining[key]) / penaltyScale[key], 0);
-      const appropriate = style === window.style || style === "both";
       const timing = appropriate ? (style === "breakfast" ? 0.75 : 0.14) : 0;
       const score = fit + 2.15 * coverage - 0.48 * excess + timing;
       return [{ food, index, amount, quantity, nutrients, score }];
     }).sort((a, b) => b.score - a.score);
-    return portions.slice(0, 1);
-  }).sort((a, b) => b.score - a.score).slice(0, 3);
+    return portions.length ? [{ appropriate, portions }] : [];
+  }).sort((a, b) => b.portions[0].score - a.portions[0].score);
+  const suited = ranked.filter(entry => entry.appropriate);
+  const pool = suited.length >= 3 ? suited : ranked;
+  if (!pool.length) return [];
+  const step = pool.length > 3 ? 3 : 1;
+  const start = (rotation * step) % pool.length;
+  return Array.from({ length: Math.min(3, pool.length) }, (_, offset) => {
+    const { portions } = pool[(start + offset) % pool.length];
+    // Con pocas comidas, alternar también las porciones válidas cambia la selección.
+    const portion = pool.length <= 3 ? Math.floor(rotation / pool.length) % portions.length : 0;
+    return portions[portion];
+  });
 }
 
 let mealLocation = localStorage.getItem("gym_meal_location");
 let lastMealRender = "";
+let mealRefreshCount = 0;
+let mealHourTimer;
+const MEAL_HOUR_MS = 3600000;
+
+function mealHourKey(date) {
+  // Date handles timezone offsets that are not whole hours.
+  const offset = date.getTimezoneOffset() * 60000;
+  return Math.floor((date.getTime() - offset) / MEAL_HOUR_MS);
+}
+
+function mealHourDelay(date) {
+  return MEAL_HOUR_MS - (date.getMinutes() * 60000 + date.getSeconds() * 1000 + date.getMilliseconds());
+}
+
+function refreshMealSuggestions() {
+  mealRefreshCount++;
+  renderToday();
+}
+
+function scheduleMealHour() {
+  clearTimeout(mealHourTimer);
+  mealHourTimer = setTimeout(() => {
+    if (document.getElementById("v-today").classList.contains("active")) renderToday();
+    scheduleMealHour();
+  }, mealHourDelay(new Date()));
+}
 
 function setMealLocation(location) {
   mealLocation = location;
@@ -2670,10 +3043,11 @@ function renderMealSuggestions(totals, now = new Date()) {
     : weekday && hour >= 7 && hour < 17 ? "school" : "home";
   const window = mealWindow(hour);
   const remaining = mealGaps(totals);
-  const signature = JSON.stringify([location, window.label, remaining, foods.length]);
+  const hourKey = mealHourKey(now);
+  const signature = JSON.stringify([location, hourKey, mealRefreshCount, remaining, foods.length]);
   if (signature === lastMealRender) return;
   lastMealRender = signature;
-  document.getElementById("mealOccasion").textContent = window.label;
+  document.getElementById("mealOccasion").textContent = `${window.label} · ${String(hour).padStart(2, "0")}:00`;
   for (const [id, value] of [["mealSchool", "school"], ["mealHome", "home"]]) {
     const button = document.getElementById(id);
     button.classList.toggle("active", location === value);
@@ -2691,7 +3065,7 @@ function renderMealSuggestions(totals, now = new Date()) {
     note.textContent = "";
     return;
   }
-  const suggestions = suggestMeals(foods, MEAL_OPTIONS[location], remaining, window);
+  const suggestions = suggestMeals(foods, MEAL_OPTIONS[location], remaining, window, hourKey + mealRefreshCount);
   box.innerHTML = suggestions.map(({ food, index, quantity, amount, nutrients }) => {
     const title = food.name.replace(/\s*\(100 (?:g|ml)\)$/, "");
     const portion = foodQuantityText({ name: food.name, qty: quantity });
@@ -2839,6 +3213,7 @@ function renderProgressCharts() {
   renderWeightChart();
   renderWaistChart();
   renderDailyNutritionChart();
+  renderWeeklyReview();
 }
 function goTab(name) {
   document.querySelectorAll(".view").forEach(view=>view.classList.toggle('active',view.id==='v-'+name));
@@ -2878,6 +3253,8 @@ window.onload = () => {
   document.getElementById("wDate").value = t;
   document.getElementById("waistDate").value = t;
   document.getElementById("waistDate").max = t;
+  document.getElementById("calorieGoalInput").value = NUTRITION_GOALS.cal.target;
+  previewCalorieGoal();
   if (!localStorage.getItem("gym_sheets_url_v1")) {
     localStorage.setItem("gym_sheets_url_v1", DEFAULT_SHEET_URL);
   }
@@ -2897,6 +3274,7 @@ window.onload = () => {
   goTab("today");
   prepareOffline();
   syncWithSheets();
+  scheduleMealHour();
   window.addEventListener("online", () => {
     if (!navigator.serviceWorker?.controller) prepareOffline();
     syncWithSheets();
@@ -2911,11 +3289,12 @@ window.onload = () => {
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) {
       if (restInterval !== null) updateRestTimer();
+      if (document.getElementById("v-today").classList.contains("active")) renderToday();
+      scheduleMealHour();
       syncWithSheets();
     }
   });
   window.setInterval(() => {
-    if (document.getElementById("v-today").classList.contains("active")) renderToday();
     if (pendingOperations().length) syncWithSheets();
   }, 60000);
 };
