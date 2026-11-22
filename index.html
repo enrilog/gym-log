@@ -323,8 +323,7 @@ const TEMPLATES = {
     ["Jalón de espalda con barra en polea", "kg", "Bilateral 2 manos · Agarre abierto", ""],
     ["Remo cerrado en máquina", "kg", "Bilateral 2 manos · Agarre neutro", ""],
     ["Jalón de tríceps unilateral en polea", "kg", "Unilateral · Doble polea (2:1)", ""],
-    ["Rear reverse delt unilateral en máquina", "kg", "Unilateral en máquina (1 brazo)", ""],
-    ["Shoulder press bilateral en máquina", "kg", "Bilateral · Nivel 8 · Agarre neutro", ""]
+    ["Rear reverse delt unilateral en máquina", "kg", "Unilateral en máquina (1 brazo)", ""]
   ],
   Inferior: [
     ["Apertura de piernas en máquina", "kg", "En máquina", ""],
@@ -336,6 +335,10 @@ const TEMPLATES = {
     ["Máquina de cuádriceps", "kg", "En máquina", ""]
   ]
 };
+
+const ARCHIVED_TEMPLATES = [
+  ["Shoulder press bilateral en máquina", "kg", "Bilateral · Nivel 8 · Agarre neutro", ""]
+];
 
 function canonicalExerciseName(rawName) {
   const n = String(rawName || "").toLowerCase().trim();
@@ -1062,7 +1065,9 @@ function renderExList() {
     document.getElementById("gRest").value = draft.rest;
     document.getElementById("gNotes").value = draft.notes;
     draft.exercises.sort((a, b) => a.order - b.order).forEach(saved => {
-      const template = TEMPLATES[curSplit].find(t => t[0] === saved.name);
+      const hasRecordedSeries = saved.reps.some(rep => rep !== "") || saved.values["i-warm-rep"];
+      const archivedTemplate = hasRecordedSeries && ARCHIVED_TEMPLATES.find(t => t[0] === saved.name);
+      const template = TEMPLATES[curSplit].find(t => t[0] === saved.name) || archivedTemplate;
       if (!template) return;
       const card = makeExCard(...template);
       box.appendChild(card);
@@ -1077,6 +1082,10 @@ function renderExList() {
       card.querySelectorAll(".st-btn").forEach(btn => btn.classList.toggle("active", btn.dataset.status === saved.status));
       card.open = saved.open;
     });
+    const chestPress = TEMPLATES[curSplit].find(t => t[0] === "Chest press vertical en máquina");
+    if (chestPress && !draft.exercises.some(saved => saved.name === chestPress[0])) {
+      box.appendChild(makeExCard(...chestPress));
+    }
   } else {
     TEMPLATES[curSplit].forEach(t => box.appendChild(makeExCard(...t)));
     if (box.firstElementChild) box.firstElementChild.open = true;
@@ -1588,7 +1597,8 @@ function renderProgressAndRanks() {
     });
   });
 
-  const officialOrder = [...TEMPLATES.Superior.map(t => t[0]), ...TEMPLATES.Inferior.map(t => t[0])];
+  const archivedNames = new Set(ARCHIVED_TEMPLATES.map(t => t[0]));
+  const officialOrder = [...TEMPLATES.Superior, ...TEMPLATES.Inferior, ...ARCHIVED_TEMPLATES].map(t => t[0]);
   const exArray = officialOrder.map(name => exMap[name]).filter(Boolean);
 
   let sumPctGain = 0;
@@ -1613,7 +1623,7 @@ function renderProgressAndRanks() {
 
     const card = document.createElement("details");
     card.className = "rank-card";
-    card.innerHTML = `<summary><span>${escapeOption(item.name)}</span><span class="sub">${item.bestKg} kg</span></summary>
+    card.innerHTML = `<summary><span>${escapeOption(item.name)}${archivedNames.has(item.name) ? ' · Archivado' : ''}</span><span class="sub">${item.bestKg} kg</span></summary>
       <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:6px;">
         <div class="rank-header-left">
           <div class="rank-icon-box" style="background:${rk.currentTier.bg}; border:1px solid ${rk.currentTier.color};">
