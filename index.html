@@ -456,7 +456,9 @@ const INITIAL_FOODS = [
   { cat: "Sopas, Leguminosas y Arroz", name: "Frijoles refritos (1/2 taza)", cal: 190, prot: 9, carb: 24, fat: 7 },
   { cat: "Sopas, Leguminosas y Arroz", name: "Arroz cocido blanco o rojo (150g / 1 taza)", cal: 205, prot: 4.3, carb: 44, fat: 0.4 },
   { cat: "Sopas, Leguminosas y Arroz", name: "Consomé de verduras con pollo deshebrado (1 plato)", cal: 175, prot: 18, carb: 14, fat: 5 },
-  { cat: "Sopas, Leguminosas y Arroz", name: "Consomé de verduras (1 plato)", cal: 85, prot: 3, carb: 12, fat: 2.5 },
+  { cat: "Sopas, Leguminosas y Arroz", name: "Consomé de verduras sin caldo (100 g)", cal: 40.25, prot: 1.1, carb: 9.03, fat: 0.3,
+    quantityMode: "grams", source: "usda", searchTerms: "verduras picadas cocidas escurridas",
+    note: "Pesa las verduras cocidas y escurridas. Estimación con 25 g de cada una: zanahoria, chayote, calabacita y papa." },
   { cat: "Sopas, Leguminosas y Arroz", name: "Sopa aguada de fideo / pasta (1 tazón)", cal: 180, prot: 5, carb: 30, fat: 4 },
   { cat: "Sopas, Leguminosas y Arroz", name: "Espagueti rojo o blanco a la crema (1 taza)", cal: 260, prot: 8, carb: 40, fat: 7 },
   { cat: "Guisados y Proteínas", name: "Bistec de res a la plancha o encebollado (150g)", cal: 270, prot: 38, carb: 0, fat: 12 },
@@ -622,6 +624,7 @@ function foodSearchText(value) {
 function foodKey(name) {
   const key = foodSearchText(name)
     .replace(/\([^)]*\)/g, "").replace(/\s+/g, " ").trim();
+  if (key === "consome de verduras") return "consome de verduras sin caldo";
   const aliases = { tortilla: "tortilla de maiz", tortillas: "tortilla de maiz", "tortillas de maiz": "tortilla de maiz", "huevos revueltos": "huevo revuelto", "huevo revuelto solo": "huevo revuelto" };
   return aliases[key] || key.replace('sope o huarache', 'sope');
 }
@@ -636,7 +639,7 @@ const WEIGHT_REFERENCES = {
   "Avena cocida con leche": 240, "Pozole blanco o rojo con carne": 400,
   "Consomé de barbacoa con arroz y garbanzo": 250,
   "Consomé de verduras con pollo deshebrado": 250,
-  "Consomé de verduras": 250, "Sopa aguada de fideo / pasta": 250,
+  "Sopa aguada de fideo / pasta": 250,
   "Barbacoa de borrego/res": 150, "Bistec de res a la plancha o encebollado": 150,
   "Pechuga de pollo a la plancha": 150, "Carne de hamburguesa": 110,
   "Cochinita pibil": 150, "Carnitas de cerdo": 150,
@@ -703,6 +706,12 @@ function foodQuantityText(item) {
 }
 const FOOD_SOURCES = {
   usda: { label: "USDA FoodData Central", url: "https://fdc.nal.usda.gov/download-datasets/" },
+  fndds: { label: "USDA FNDDS 2021–2023", url: "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases" },
+  porkNeck: { label: "USDA FNDDS · carne de huesos del cuello", url: "https://www.spacemelon.com/food/pork-neck-bones-cooked/" },
+  skirt: { label: "USDA FoodData Central · arrachera cocida", url: "https://whatyoueat.io/foods/172157" },
+  taro: { label: "Ficha de yogur helado de taro de Yogurtland", url: "https://www.yogurtland.com/flavors/view/133/taro/1000" },
+  corona: { label: "Información nutricional de Corona", url: "https://www.coronausa.com/es/pages/faqs" },
+  modelo: { label: "Información nutricional de Modelo", url: "https://www.modelousa.com/es/pages/faq" },
   salmas: { label: "Ficha de Salmas Saníssimo", url: "https://nutricionappsc-com-assets.s3.amazonaws.com/2024-04/DossierSanissimo_0.pdf?VersionId=Jur0ZKC.uQnQIqIM_QEkfhzzHRaOhNUg" },
   ritz: { label: "Etiqueta de Ritz México", url: "https://www.heb.com.mx/nabisco-galletas-ritz-89-gr-650000/p" },
   profeco: { label: "Estudio de Profeco", url: "https://revistadelconsumidor.profeco.gob.mx/media/revistas/sumario/sumario_estudio_de_calidad_2025_11_164h9AAj.pdf#page=8" },
@@ -818,6 +827,15 @@ const EXPANDED_FOODS = [
 })));
 
 EXPANDED_FOODS.push(
+  { cat: "Guisados y Proteínas", name: "Espinazo de cerdo cocido (100 g)", cal: 182, prot: 25.9, carb: 0, fat: 8,
+    quantityMode: "grams", source: "porkNeck", searchTerms: "espinazo puerco",
+    note: "Pesa solo la carne que comes, sin hueso ni caldo. Referencia aproximada de carne cocida de huesos del cuello de cerdo." },
+  { cat: "Guisados y Proteínas", name: "Arrachera de res a la parrilla (100 g)", cal: 233, prot: 30.06, carb: 0, fat: 12.54,
+    quantityMode: "grams", source: "skirt", searchTerms: "entraña asada skirt steak",
+    note: "Peso de la carne cocida. La grasa y el marinado pueden cambiar los valores." },
+  { cat: "Botanas y postres", name: "Helado de yogur de taro (100 g)", cal: 123.46, prot: 3.53, carb: 24.69, fat: 0,
+    quantityMode: "grams", source: "taro", searchTerms: "helado taro yogurt yogur helado nieve frozen froyo",
+    note: "Estimación basada en el yogur helado de taro sin grasa de Yogurtland. Registra los toppings por separado." },
   { cat: "Botanas y postres", name: "Galletas Salmas Saníssimo de maíz (1 pieza)", cal: 21, prot: 0.42, carb: 4.64, fat: 0.28,
     quantityMode: "pieces", pieceGrams: 6, source: "salmas", note: "3 piezas pesan 18 g. Los carbohidratos totales incluyen la fibra de la etiqueta." },
   { cat: "Botanas y postres", name: "Galletas Ritz Original México (100 g)", cal: 473.3, prot: 6.2, carb: 67.3, fat: 20.5,
@@ -831,6 +849,76 @@ EXPANDED_FOODS.push(
   { cat: "Guisados y Proteínas", name: "Salpicón de res casero (100 g)", cal: 162, prot: 15.8, carb: 2.3, fat: 9.9,
     quantityMode: "grams", source: "salpicon", note: "Estimación con 55 g de res deshebrada, 33 g de jitomate, lechuga y cebolla, 8 g de aguacate y 4 g de aceite. Pesa tostadas y otros acompañamientos por separado." }
 );
+
+// Platillos del FNDDS 2021–2023. Valores por 100 g comestibles.
+const PREPARED_FOODS = [
+  ["Antojitos y Maíz", [
+    ["Taco de pescado", 275, 11.62, 22.99, 15.29, "tacos pescado"], // FNDDS 58102210
+    ["Tamal de dulce", 259, 2.22, 35.61, 12.57, "tamal dulce"], // FNDDS 53430700
+    ["Fajita de pollo en tortilla", 206, 11.33, 17.99, 9.8, "fajitas pollo"], // FNDDS 58105000
+    ["Fajita de camarón en tortilla", 189, 8.33, 18.35, 8.92, "fajitas camarones"], // FNDDS 58105060
+  ]],
+  ["Guisados y Proteínas", [
+    ["Nuggets de pollo empanizados", 307, 15.92, 14.93, 20.36, "nugget pollo"], // FNDDS 24198729
+    ["Nuggets de pollo de paquete, preparados", 298, 13.36, 17.88, 19.23, "nugget congelados pollo"], // FNDDS 24198736
+    ["Pierna de pollo grande asada con piel", 190, 23.21, 0, 10.09, "pierna pollo muslito", 80, "Porción sugerida de 80 g comestibles para una pierna grande. Excluye el hueso del peso."], // FNDDS 24142300
+    ["Pierna de pollo grande asada sin piel", 154, 24.1, 0, 5.67, "pierna pollo muslito", 65, "Porción sugerida de 65 g comestibles para una pierna grande. Excluye el hueso del peso."], // FNDDS 24142301
+    ["Pierna con muslo de pollo al horno con piel", 214, 23.16, 0, 12.81, "cuarto trasero pollo"], // FNDDS 24132230
+    ["Chorizo", 341, 19.3, 2.63, 28.1, "chorizo cocido"], // FNDDS 25220710
+    ["Pollo en salsa teriyaki", 163, 25.73, 1.62, 5.96, "pollo teriyaki"], // FNDDS 27145000
+    ["Pecho de res cocido", 231, 29.41, 0, 12.04, "brisket"], // FNDDS 21417100
+  ]],
+  ["Sopas, Leguminosas y Arroz", [
+    ["Sopa de tortilla", 102, 4.22, 12.56, 4.17, "sopa azteca"], // FNDDS 58421080
+    ["Caldo de pollo", 40, 3.44, 4.04, 1.14, ""], // FNDDS 28340660
+    ["Caldo de res", 47, 3.28, 4.04, 2.05, ""], // FNDDS 75652010
+    ["Sopa de pollo con fideos", 53, 3.84, 6.21, 1.4, ""], // FNDDS 58403040
+    ["Sopa de lentejas", 60, 3.82, 10.2, 0.69, ""], // FNDDS 41603010
+    ["Arroz frito con pollo", 173, 7.28, 27.62, 3.66, "yakimeshi pollo"], // FNDDS 58150320
+    ["Arroz frito con camarón", 166, 6.68, 27.85, 2.97, "yakimeshi camaron"], // FNDDS 58150510
+  ]],
+  ["Ensaladas y guarniciones", [
+    ["Crotones de pan", 465, 10.8, 63.5, 18.3, "crutones croutons croton cruton", 15], // FNDDS 51185000
+    ["Ensalada de atún con mayonesa", 194, 10.07, 2.89, 15.84, ""], // FNDDS 27450060
+    ["Ensalada César con pollo sin aderezo", 63, 8.52, 2.99, 1.94, "ensalada cesar", 100, "Pesa el aderezo y los crotones por separado si los agregas."], // FNDDS 27446360
+    ["Ensalada de papa con mayonesa", 168, 1.51, 15.81, 11.14, ""], // FNDDS 71603010
+    ["Ensalada de col cremosa", 117, 0.94, 10.45, 7.98, "coleslaw repollo"], // FNDDS 75141000
+    ["Puré de papa casero con leche", 114, 2.15, 17.6, 4.07, "pure patata"], // FNDDS 71501010
+    ["Guacamole", 155, 1.95, 8.45, 14.18, "aguacate dip", 30], // FNDDS 63409010
+    ["Pico de gallo", 17, 0.71, 3.7, 0.14, "salsa mexicana", 30], // FNDDS 74402110
+    ["Salsa verde", 38, 1.13, 6.36, 0.89, "salsa tomatillo", 30], // FNDDS 74402350
+    ["Aderezo César regular", 542, 2.17, 3.3, 57.85, "aderezo ensalada cesar", 15], // FNDDS 83102000
+    ["Hummus natural", 243, 7.35, 14.9, 17.1, "dip garbanzo humus", 30], // FNDDS 41205070
+  ]],
+  ["Pescados y mariscos preparados", [
+    ["Ceviche", 63, 10.53, 3.58, 0.76, "cebiche pescado"], // FNDDS 27151030
+    ["Cóctel de camarón", 99, 13.24, 7.92, 1.22, "coctel camarones"], // FNDDS 27150110
+  ]],
+  ["Pizzas, pastas y sushi", [
+    ["Pizza de queso, masa de grosor medio", 266, 11.39, 33.33, 9.69, "pizza queso regular"], // FNDDS 58106225
+    ["Pizza de pepperoni, masa de grosor medio", 282, 11.74, 31.98, 11.91, "pizza peperoni"], // FNDDS 58106555
+    ["Lasaña casera con carne", 206, 13.63, 13.1, 10.92, "lasagna"], // FNDDS 58130015
+    ["Lasaña de verduras", 188, 11.2, 14.52, 9.38, "lasagna vegetariana"], // FNDDS 58130320
+    ["Macarrones con queso", 223, 8.68, 23.08, 10.5, "mac and cheese"], // FNDDS 58145110
+    ["Sushi roll California", 94, 2.92, 18.39, 0.67, "rollo sushi california"], // FNDDS 58151180
+    ["Sushi roll de salmón", 103, 6.88, 15.3, 1.28, "rollo sushi salmon"], // FNDDS 58151200
+  ]],
+  ["Desayunos, Frutas y Básicos", [
+    ["Huevos rancheros", 121, 6.68, 8.85, 6.65, ""], // FNDDS 32105180
+    ["Hot cakes sencillos", 282, 7.41, 35.32, 12.07, "hotcakes pancakes panqueques"], // FNDDS 55101000
+    ["Pan francés", 273, 10.36, 32.34, 11.38, "tostada francesa french toast"], // FNDDS 55301000
+  ]],
+  ["Botanas y postres", [
+    ["Flan", 178, 5.23, 28.24, 4.94, ""], // FNDDS 13210350
+    ["Arroz con leche", 108, 3.23, 18.39, 2.15, ""], // FNDDS 13210410
+    ["Churros", 419, 6.05, 48.87, 22.21, "churro"], // FNDDS 53520200
+    ["Pay de queso", 399, 5.29, 34.82, 26.52, "cheesecake pastel queso"], // FNDDS 53104500
+    ["Gelatina de postre regular", 60, 1.22, 14.19, 0, ""], // FNDDS 91501010
+  ]],
+].flatMap(([cat, rows]) => rows.map(([name, cal, prot, carb, fat, searchTerms, defaultAmount, note]) => ({
+  cat, name: name + " (100 g)", cal, prot, carb, fat, searchTerms, defaultAmount, note,
+  quantityMode: "grams", source: "fndds"
+})));
 
 // Referencias aproximadas por 100 ml de bebida lista para tomar.
 const DRINKS = [
@@ -847,6 +935,20 @@ const DRINKS = [
   cat: "Bebidas", name: name + " (100 ml)", cal, prot, carb, fat, quantityMode: "milliliters",
   defaultAmount: 250, source: "usda"
 }));
+
+// FNDDS: peso por fl oz. Marcas: etiqueta por 12 fl oz.
+DRINKS.push(...[
+  ["Cerveza regular", 43.62, 0.47, 3.6, 0.0, 355, "fndds", "cerveza lager chela"], // FNDDS 93101000
+  ["Cerveza light", 29.42, 0.24, 1.66, 0.0, 355, "fndds", "cerveza ligera chela light"], // FNDDS 93102000
+  ["Cerveza sin alcohol", 37.53, 0.21, 8.17, 0.12, 355, "fndds", ""], // FNDDS 92803000
+  ["Cerveza Corona Extra", 41.7, 0.34, 3.92, 0.0, 355, "corona", "corona chela"],
+  ["Cerveza Modelo Especial", 40.3, 0.31, 3.83, 0.0, 355, "modelo", "modelo chela"],
+  ["Agua de horchata preparada con agua", 92.24, 1.14, 21.44, 0.14, 250, "fndds", "horchata bebida"], // FNDDS 92610020
+  ["Horchata preparada con leche", 95.39, 1.49, 20.6, 0.66, 250, "fndds", "agua horchata bebida"], // FNDDS 92610030
+].map(([name, cal, prot, carb, fat, defaultAmount, source, searchTerms]) => ({
+  cat: "Bebidas", name: name + " (100 ml)", cal, prot, carb, fat, defaultAmount, source, searchTerms,
+  quantityMode: "milliliters"
+})));
 
 function loadMergedCatalog() {
   const saved = JSON.parse(localStorage.getItem("gym_foods_v1")) || [];
@@ -899,7 +1001,7 @@ function loadMergedCatalog() {
   const merged = [];
   const seen = new Set();
   const savedCustom = saved.filter(item => item.cat === "Mis Platillos Personalizados");
-  [...fruits, ...INITIAL_FOODS, ...basics, ...savedCustom, ...EXPANDED_FOODS, ...DRINKS, ...saved].forEach(raw => {
+  [...fruits, ...INITIAL_FOODS, ...basics, ...savedCustom, ...EXPANDED_FOODS, ...PREPARED_FOODS, ...DRINKS, ...saved].forEach(raw => {
     const item = portionFood(unitFood(raw));
     const key = foodKey(item.name);
     if (!seen.has(key)) {
