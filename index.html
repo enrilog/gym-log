@@ -60,6 +60,21 @@
     .meal-note {margin:8px 0 0;}
     @media(max-width:420px){.meal-option {align-items:flex-start;flex-direction:column;gap:8px;}}
     .training-preview {display:flex;align-items:center;gap:16px;margin:16px 0 20px;} .preview-icon {display:grid;place-items:center;width:50px;height:50px;border-radius:15px;background:#eaf3ff;color:var(--accent);flex-shrink:0;}
+    .rest-preference {display:flex;align-items:center;gap:10px;margin:16px 0 0;font-size:14px;}
+    .rest-preference input {width:20px;height:20px;accent-color:var(--accent);}
+    .rest-timer {position:sticky;top:calc(76px + env(safe-area-inset-top));z-index:15;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 14px;margin-bottom:12px;background:#eaf3ff;border:1px solid #cfe3fa;border-radius:14px;}
+    .rest-timer[hidden] {display:none;} .rest-timer output {font-variant-numeric:tabular-nums;font-weight:700;color:var(--accent);}
+    .rest-timer .pill {flex-shrink:0;}
+    .exercise-comparison {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0;}
+    .exercise-comparison > div {min-width:0;padding:10px;background:var(--input);border-radius:10px;overflow-wrap:anywhere;}
+    .exercise-comparison .pill {margin-top:8px;white-space:normal;text-align:left;min-height:44px;}
+    .exercise-advice {margin:7px 0 12px;}
+    .exercise-history {border-top:1px solid var(--border);margin-top:14px;padding-top:12px;}
+    .exercise-history h3 {font-size:14px;}
+    .exercise-history ul {list-style:none;}
+    .exercise-history li {display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--border);}
+    .exercise-history li:first-child {margin-top:6px;}
+    .exercise-history time {flex-shrink:0;}
     .ex-card {padding:0;overflow:hidden;} summary {list-style:none;} summary::-webkit-details-marker {display:none;}
     .ex-summary {display:flex;align-items:center;gap:12px;padding:20px;min-height:88px;} .ex-summary:after {content:'+';font-size:24px;font-weight:300;color:var(--muted);margin-left:auto;}
     .ex-card[open]>.ex-summary:after {content:'−';} .ex-title {min-width:0;flex:1;} .ex-name {font-weight:650;font-size:15px;line-height:1.4;margin-bottom:5px;} .ex-summary .sub {font-size:12px;}
@@ -135,7 +150,7 @@
         <div class="nutrition-metrics" id="todayMacros"></div>
         <div class="actions"><button class="btn" onclick="openTodayFood()">Registrar comida</button><button class="btn btn-sec" onclick="goTab('nut')">Ver comidas</button></div>
       </div>
-      <div class="card"><div class="eyebrow">Tu entrenamiento</div><div class="training-preview"><div class="preview-icon" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 5v14M3 8v8M18 5v14M21 8v8M6 12h12"/></svg></div><div><h2 id="todayWorkoutTitle">Tú eliges la rutina</h2><p class="sub" id="todayWorkoutNote">Superior o inferior, cuando estés listo.</p></div></div><button class="btn btn-sec" onclick="goTab('gym')">Ir a entrenar</button></div>
+      <div class="card"><div class="eyebrow">Tu entrenamiento</div><div class="training-preview"><div class="preview-icon" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 5v14M3 8v8M18 5v14M21 8v8M6 12h12"/></svg></div><div><h2 id="todayWorkoutTitle">Tú eliges la rutina</h2><p class="sub" id="todayWorkoutNote">Superior o inferior, cuando estés listo.</p></div></div><button type="button" class="btn btn-sec" id="todayWorkoutAction" onclick="continueWorkout()">Ir a entrenar</button></div>
       <div class="card"><div class="eyebrow">Tu objetivo</div><div class="hero-number" style="font-size:36px;"><span id="todayWeight">65.0</span> <small>kg</small></div><p class="sub">Camino a 75 kg. Paso a paso.</p><button class="btn btn-ghost" style="margin-top:16px;" onclick="goTab('prog')">Ver mi progreso</button></div>
     </div>
     <div class="card meal-suggestions" aria-labelledby="mealTitle">
@@ -177,6 +192,11 @@
         <label>Contexto / Notas Generales</label>
         <select id="gNotes" aria-label="Contexto de sesión"><option value="">Sin notas</option><option>Buena energía</option><option>Energía baja</option><option>Sesión ligera</option><option>Molestia: cuidar carga</option></select>
       </div>
+      <label class="rest-preference" for="restTimerEnabled"><input type="checkbox" id="restTimerEnabled" onchange="setRestTimerEnabled(this.checked)" /> Iniciar descanso al registrar cada serie</label>
+    </div>
+    <div class="rest-timer" id="restTimer" hidden>
+      <div><span class="sub" id="restTimerExercise"></span><br /><output id="restTimerClock" aria-label="Tiempo restante de descanso" aria-live="off"></output><span class="sub" id="restTimerStatus" role="status"></span></div>
+      <button type="button" class="pill" id="restTimerAction" onclick="stopRestTimer()">Cancelar</button>
     </div>
     <p class="sub workout-progress" id="workoutProgress" role="status" aria-live="polite"></p>
     <div id="exList" onchange="handleWorkoutChange(event)"></div>
@@ -1143,28 +1163,96 @@ function toast(msg) {
   setTimeout(() => el.classList.remove("show"), 2000);
 }
 
-function findLastEx(targetName) {
+function calibratedPlateLoad(exercise) {
+  const kg = toKg(exercise.weight, exercise.unit);
+  const normalized = normalizeTricepsUnilateralKg(canonicalExerciseName(exercise.name), kg);
+  return normalized !== kg ? { ...exercise, weight: normalized, unit: "kg", historicalBilateral: true } : exercise;
+}
+
+function effectiveReps(value) {
+  const parts = cleanReps(value).split(/\s*[,/]\s*/);
+  return parts.every(rep => /^\d{1,2}$/.test(rep)) ? parts.map(Number) : [];
+}
+
+function exerciseRir(exercise) {
+  const match = String(exercise.notes || "").match(/\bRIR\s*([0-5])\b/i);
+  return match ? Number(match[1]) : null;
+}
+
+function findLastEx(targetName, through = localToday()) {
   const targetCanon = canonicalExerciseName(targetName);
   for (let i = workouts.length - 1; i >= 0; i--) {
-    const f = workouts[i].exercises.find(e => canonicalExerciseName(e.name) === targetCanon);
-    if (f) {
-      const rawKg = toKg(f.weight, f.unit);
-      if (targetCanon === "Jalón de tríceps unilateral en polea" && rawKg >= 36) {
-        return { ...f, weight: normalizeTricepsUnilateralKg(targetCanon, rawKg), unit: "kg" };
-      }
-      return f;
-    }
+    const session = workouts[i];
+    if (!session.date || session.date > through) continue;
+    const exercise = session.exercises.findLast(e => canonicalExerciseName(e.name) === targetCanon);
+    if (exercise) return { ...calibratedPlateLoad(exercise), date: session.date };
   }
   return null;
 }
 
-function getAdvice(last) {
-  if (!last) return { txt: "Sin registro previo", cls: "tag" };
-  const cleanR = cleanReps(last.reps);
-  const r1 = parseInt(cleanR.split(",")[0], 10) || 0;
-  if (last.status === "❎") return { txt: `Prev: ${last.weight}${last.unit} (${cleanR}) · Cuidar carga`, cls: "tag err" };
-  if (r1 >= 12) return { txt: `Prev: ${last.weight}${last.unit} (${cleanR}) · Subir +2.5 a 5kg`, cls: "tag up" };
-  return { txt: `Prev: ${last.weight}${last.unit} (${cleanR}) · Buscar +1 rep`, cls: "tag keep" };
+const EFFECTIVE_REP_RANGE = { min: 8, max: 12 };
+const LOAD_STEPS_KEY = "gym_load_steps_v1";
+
+function getAdvice(last, increment = 0, targetRir = 2) {
+  const { min, max } = EFFECTIVE_REP_RANGE;
+  if (!last) return { txt: "Registra una referencia", cls: "tag", reason: `Objetivo: ${min}–${max} repeticiones por serie a RIR ${targetRir}.` };
+  if (last.status === "❎") return { txt: "Cuida la carga", cls: "tag err", reason: "Marcaste molestia en el último registro. No se sugiere aumentar." };
+  if (last.status === "📉") return { txt: "Mantén o baja la carga", cls: "tag keep", reason: "Marcaste bajón en el último registro. Comprueba cómo te sientes antes de subir." };
+  if (last.historicalBilateral) return { txt: "Registra una serie unilateral", cls: "tag keep", reason: "La última referencia viene del registro bilateral convertido a la escala unilateral." };
+  const reps = effectiveReps(last.reps);
+  const rir = exerciseRir(last);
+  if (!reps.length || !Number.isFinite(Number(last.weight))) {
+    return { txt: "Completa el registro", cls: "tag keep", reason: "Faltan datos de las series efectivas para sugerir una progresión." };
+  }
+  if (Math.min(...reps) < min || (rir !== null && rir < targetRir)) {
+    return { txt: "Mantén o baja la carga", cls: "tag keep", reason: `Busca al menos ${min} repeticiones en cada serie a RIR ${targetRir} antes de subir.` };
+  }
+  if (reps.every(rep => rep >= max)) {
+    if (rir === null) return { txt: "Repite y registra el RIR", cls: "tag keep", reason: `Llegaste a ${max} en todas las series. Falta confirmar el esfuerzo de esa carga.` };
+    const reason = `Alcanzaste ${max} repeticiones en todas las series a RIR ${rir}.`;
+    if (!Number.isFinite(increment) || increment <= 0) {
+      return { txt: "Usa el menor salto de la máquina", cls: "tag up", reason: `${reason} Configura el incremento en Ajustes para ver la carga sugerida.` };
+    }
+    const next = +(Number(last.weight) + increment).toFixed(2);
+    const display = value => value.toLocaleString("es-MX", { maximumFractionDigits: 2 });
+    return { txt: `Prueba ${display(next)} ${last.unit}`, cls: "tag up", reason: `${reason} Incremento de ${display(increment)} ${last.unit}.`, recommendedWeight: next };
+  }
+  const series = reps.lastIndexOf(Math.min(...reps)) + 1;
+  return { txt: `Mantén la carga · +1 rep en serie ${series}`, cls: "tag keep", reason: `Aún quedan series por debajo de ${max}. Busca la repetición extra si puedes mantener RIR ${targetRir}.` };
+}
+
+function loadStepKey(name, unit) {
+  return JSON.stringify([canonicalExerciseName(name), unit]);
+}
+
+function refreshExerciseAdvice(card, last = findLastEx(card.dataset.name, document.getElementById("gDate").value)) {
+  const steps = JSON.parse(localStorage.getItem(LOAD_STEPS_KEY) || "{}");
+  const unit = last?.unit || card.dataset.unit;
+  const step = card.querySelector(".i-step");
+  step.value = steps[loadStepKey(card.dataset.name, unit)] || "";
+  step.setAttribute("aria-label", `Incremento mínimo disponible en ${unit}`);
+  card.querySelector(".step-unit").textContent = unit;
+  const target = Number(card.querySelector(".i-rir").value.split(" ").at(-1)) || 0;
+  const advice = getAdvice(last, Number(step.value), target);
+  if (advice.recommendedWeight !== undefined && last.unit === card.dataset.unit) {
+    ensureWeightOption(card.querySelector(".i-w"), advice.recommendedWeight);
+  }
+  const tag = card.querySelector(".advice-tag");
+  tag.className = advice.cls + " advice-tag";
+  tag.textContent = advice.txt;
+  card.querySelector(".exercise-advice").textContent = advice.reason;
+}
+
+function saveLoadStep(input) {
+  if (!input.validity.valid) return;
+  const card = input.closest(".ex-card");
+  const last = findLastEx(card.dataset.name, document.getElementById("gDate").value);
+  const key = loadStepKey(card.dataset.name, last?.unit || card.dataset.unit);
+  const steps = JSON.parse(localStorage.getItem(LOAD_STEPS_KEY) || "{}");
+  if (input.value) steps[key] = input.valueAsNumber;
+  else delete steps[key];
+  localStorage.setItem(LOAD_STEPS_KEY, JSON.stringify(steps));
+  refreshExerciseAdvice(card, last);
 }
 
 function warmupTxt(w, u) {
@@ -1189,11 +1277,12 @@ function syncSessionRirRest() {
   document.querySelectorAll("#exList .ex-card").forEach(c => {
     c.querySelector(".i-rir").value = rirVal;
     c.querySelector(".i-rest").value = restVal;
+    refreshExerciseAdvice(c);
   });
-  saveWorkoutDraft();
+  saveWorkoutDraft(true);
 }
 
-function saveWorkoutDraft() {
+function saveWorkoutDraft(markActivity = false) {
   if (!activeDraftKey) return;
   const exercises = [...document.querySelectorAll("#exList .ex-card")].map(card => ({
     name: card.dataset.name,
@@ -1206,11 +1295,39 @@ function saveWorkoutDraft() {
     values: Object.fromEntries([...card.querySelectorAll("select")].filter(el => !el.classList.contains("i-rep")).map(el => [el.className, el.value])),
     reps: [...card.querySelectorAll(".i-rep")].map(el => el.value)
   }));
-  localStorage.setItem(activeDraftKey, JSON.stringify({ exercises,
+  const old = JSON.parse(localStorage.getItem(activeDraftKey) || "null");
+  localStorage.setItem(activeDraftKey, JSON.stringify({ exercises, updatedAt: markActivity ? Date.now() : old?.updatedAt,
     rir: document.getElementById("gRir").value,
     rest: document.getElementById("gRest").value,
     notes: document.getElementById("gNotes").value
   }));
+  if (markActivity) renderTodayWorkout();
+}
+
+function resumeCandidate(today = localToday()) {
+  const drafts = [];
+  for (const key of storageKeys()) {
+    const match = key.match(/^gym_draft_v1_(\d{4}-\d{2}-\d{2})_(Superior|Inferior)$/);
+    if (!match || !normalizeDate(match[1]) || match[1] > today) continue;
+    const draft = JSON.parse(localStorage.getItem(key) || "null");
+    if (!Array.isArray(draft?.exercises)) continue;
+    const series = draft.exercises.reduce((total, exercise) => total + (exercise.reps || []).filter(rep => rep !== "").length, 0);
+    const warmup = draft.exercises.some(exercise => Boolean(exercise.values?.["i-warm-rep"]));
+    if (draft.updatedAt || draft.notes || series || warmup) {
+      drafts.push({ date: match[1], split: match[2], series, updatedAt: Number(draft.updatedAt) || 0 });
+    }
+  }
+  return drafts.sort((a, b) => Number(b.date === today) - Number(a.date === today) ||
+    b.updatedAt - a.updatedAt || b.date.localeCompare(a.date) || Number(b.split === curSplit) - Number(a.split === curSplit))[0];
+}
+
+function continueWorkout() {
+  const draft = resumeCandidate();
+  if (draft) {
+    document.getElementById("gDate").value = draft.date;
+    changeSplit(draft.split);
+  }
+  goTab("gym");
 }
 
 function completionOrder(card) {
@@ -1261,14 +1378,84 @@ function warmupFromCard(card) {
   return { weight: Number(card.querySelector(".i-warm-weight").value), unit: card.dataset.unit, reps: Number(reps) };
 }
 
+const REST_TIMER_KEY = "gym_rest_timer_v1";
+const REST_PREFERENCE_KEY = "gym_rest_enabled_v1";
+let restTimer = null;
+let restInterval = null;
+
+function restSeconds(value) {
+  const match = String(value).match(/^(\d+):([0-5]\d) min$/);
+  return match ? Number(match[1]) * 60 + Number(match[2]) : 0;
+}
+
+function secondsRemaining(deadline, now = Date.now()) {
+  return Math.max(0, Math.ceil((deadline - now) / 1000));
+}
+
+function setRestTimerEnabled(enabled) {
+  localStorage.setItem(REST_PREFERENCE_KEY, enabled ? "1" : "0");
+  if (!enabled) stopRestTimer();
+}
+
+function startRestTimer(card, series) {
+  if (!document.getElementById("restTimerEnabled").checked) return;
+  const seconds = restSeconds(card.querySelector(".i-rest").value);
+  if (!seconds) return;
+  restTimer = { name: card.dataset.name, series, deadline: Date.now() + seconds * 1000 };
+  localStorage.setItem(REST_TIMER_KEY, JSON.stringify(restTimer));
+  document.getElementById("restTimerStatus").textContent = "Descanso iniciado.";
+  showRestTimer();
+}
+
+function showRestTimer() {
+  clearInterval(restInterval);
+  restInterval = null;
+  if (updateRestTimer()) restInterval = setInterval(updateRestTimer, 1000);
+}
+
+function updateRestTimer() {
+  if (!restTimer) return false;
+  const seconds = secondsRemaining(restTimer.deadline);
+  const panel = document.getElementById("restTimer");
+  panel.hidden = false;
+  document.getElementById("restTimerExercise").textContent = `${restTimer.name} · Serie ${restTimer.series}`;
+  document.getElementById("restTimerClock").textContent = seconds
+    ? `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}` : "";
+  document.getElementById("restTimerAction").textContent = seconds ? "Cancelar" : "Cerrar";
+  if (seconds) return true;
+  document.getElementById("restTimerStatus").textContent = "Descanso terminado.";
+  clearInterval(restInterval);
+  restInterval = null;
+  localStorage.removeItem(REST_TIMER_KEY);
+  return false;
+}
+
+function stopRestTimer() {
+  clearInterval(restInterval);
+  restInterval = null;
+  restTimer = null;
+  localStorage.removeItem(REST_TIMER_KEY);
+  document.getElementById("restTimer").hidden = true;
+  document.getElementById("restTimerStatus").textContent = "";
+}
+
 function handleWorkoutChange(event) {
-  const card = event.target.closest(".ex-card");
-  if (card && card.dataset.completed === "true" && [...card.querySelectorAll(".i-rep")].some(el => el.value === "")) {
+  const input = event.target;
+  const card = input.closest(".ex-card");
+  if (!card || input.classList.contains("i-step")) return;
+  const reps = [...card.querySelectorAll(".i-rep")];
+  if (input.classList.contains("i-rep")) {
+    if (input.value !== "" && input.dataset.recorded !== "true") startRestTimer(card, reps.indexOf(input) + 1);
+    input.dataset.recorded = String(input.value !== "");
+  }
+  if (input.classList.contains("i-rir")) refreshExerciseAdvice(card);
+  if (card.dataset.completed === "true" && reps.some(el => el.value === "")) {
     card.dataset.completed = "false";
     delete card.dataset.completionOrder;
     sortExerciseCards();
   }
-  saveWorkoutDraft();
+  renderExerciseCurrent(card);
+  saveWorkoutDraft(true);
 }
 
 function toggleExerciseCompleted(button, event) {
@@ -1288,7 +1475,7 @@ function toggleExerciseCompleted(button, event) {
     delete card.dataset.completionOrder;
   }
   sortExerciseCards();
-  saveWorkoutDraft();
+  saveWorkoutDraft(true);
 }
 
 function renderExList() {
@@ -1315,10 +1502,16 @@ function renderExList() {
       }
       card.dataset.status = saved.status;
       Object.entries(saved.values).forEach(([className, value]) => {
-        card.getElementsByClassName(className)[0].value = value;
+        const field = card.getElementsByClassName(className)[0];
+        if (!field) return;
+        if (className === "i-w" && value) ensureWeightOption(field, value);
+        field.value = value;
       });
       renderRepSelectors(card);
-      card.querySelectorAll(".i-rep").forEach((el, i) => { el.value = saved.reps[i] ?? ""; });
+      card.querySelectorAll(".i-rep").forEach((el, i) => {
+        el.value = saved.reps[i] ?? "";
+        el.dataset.recorded = String(el.value !== "");
+      });
       setU(card.querySelector(saved.unit === "lbs" ? ".unit-lbs" : ".unit-kg"), saved.unit);
       card.querySelectorAll(".st-btn").forEach(btn => btn.classList.toggle("active", btn.dataset.status === saved.status));
       card.open = saved.open;
@@ -1345,20 +1538,27 @@ function escapeOption(value) {
 function optionsHTML(values, selected) {
   return values.map(value => `<option value="${escapeOption(value)}" ${String(value) === String(selected) ? 'selected' : ''}>${escapeOption(value)}</option>`).join("");
 }
+function ensureWeightOption(select, weight) {
+  const value = String(weight);
+  const options = [...select.options];
+  if (options.some(option => option.value === value)) return;
+  const next = options.find(option => Number(option.value) > Number(weight));
+  select.add(new Option(value, value), next || null);
+}
+
 function renderRepSelectors(card) {
   const previous = [...card.querySelectorAll(".i-rep")].map(el => el.value);
   card.querySelector(".rep-selectors").innerHTML = Array.from({ length: Number(card.querySelector(".i-series").value) }, (_, i) => `
-    <div><label>Serie ${i + 1}</label><select class="i-rep" aria-label="Repeticiones de serie ${i + 1}">
+    <div><label>Serie ${i + 1}</label><select class="i-rep" data-recorded="${Boolean(previous[i])}" aria-label="Repeticiones de serie ${i + 1}">
       <option value="">Sin registrar</option>${optionsHTML(Array.from({ length: 41 }, (_, n) => n), previous[i] ?? "")}
     </select></div>`).join("");
 }
 
 function makeExCard(name, defU, setup, warn) {
-  const last = findLastEx(name);
-  const adv = getAdvice(last);
+  const last = findLastEx(name, document.getElementById("gDate").value);
   const w = last ? last.weight : 25;
   const u = last ? last.unit : defU;
-  const lastSeries = last ? cleanReps(last.reps).split(",").length : 3;
+  const lastSeries = effectiveReps(last?.reps).length || 3;
   const defRir = document.getElementById("gRir")?.value || "RIR 2";
   const defRest = document.getElementById("gRest")?.value || (curSplit === "Superior" ? "2:00 min" : "1:30 min");
 
@@ -1373,10 +1573,18 @@ function makeExCard(name, defU, setup, warn) {
     <summary class="ex-summary"><span class="ex-number">·</span><div class="ex-title"><div class="ex-name">${escapeOption(name)}</div><div class="sub ex-preview">${last ? `Última vez: ${last.weight} ${last.unit} · ${escapeOption(cleanReps(last.reps))}` : 'Sin registro previo · Abre para empezar'}</div></div><button type="button" class="complete-btn" aria-pressed="false" aria-label="Marcar completado: ${escapeOption(name)}" onclick="toggleExerciseCompleted(this,event)">○</button></summary>
     <div class="exercise-body">
     <div class="tags">
-      <span class="${adv.cls}">${adv.txt}</span>
+      <span class="tag advice-tag"></span>
       <span class="tag w-tag">${warmupTxt(w, u)}</span>
       ${setup.includes("2:1") ? `<span class="tag">Doble polea (2:1)</span>` : ""}
       ${warn ? `<span class="tag err">${warn}</span>` : ""}
+    </div>
+    <p class="sub exercise-advice"></p>
+    <div class="exercise-comparison">
+      <div><b>Última vez${last ? ` · ${escapeOption(last.date)}` : ""}</b>
+        <p class="sub">${last ? `${escapeOption(last.weight)} ${escapeOption(last.unit)}${last.historicalBilateral ? " (convertidos)" : ""} · ${escapeOption(cleanReps(last.reps))} reps${exerciseRir(last) === null ? "" : ` · RIR ${exerciseRir(last)}`}` : "Sin registro previo"}</p>
+        ${last ? '<button type="button" class="pill copy-load">Copiar carga anterior</button>' : ""}
+      </div>
+      <div><b>Sesión actual</b><p class="sub current-sets"></p></div>
     </div>
     <div class="row2" style="margin-bottom:8px;">
       <div>
@@ -1384,8 +1592,8 @@ function makeExCard(name, defU, setup, warn) {
         <div class="w-box">
           <select class="i-w" aria-label="Peso" onchange="updWarm(this)">${optionsHTML([...new Set([Number(w), ...Array.from({ length: 1001 }, (_, i) => i / 2)])].sort((a,b) => a-b), w)}</select>
           <div class="u-tog">
-            <button type="button" class="u-btn unit-kg ${u==='kg'?'active':''}" onclick="setU(this,'kg');saveWorkoutDraft()">kg</button>
-            <button type="button" class="u-btn unit-lbs ${u==='lbs'?'active':''}" onclick="setU(this,'lbs');saveWorkoutDraft()">lbs</button>
+            <button type="button" class="u-btn unit-kg ${u==='kg'?'active':''}" onclick="setU(this,'kg');saveWorkoutDraft(true)">kg</button>
+            <button type="button" class="u-btn unit-lbs ${u==='lbs'?'active':''}" onclick="setU(this,'lbs');saveWorkoutDraft(true)">lbs</button>
           </div>
         </div>
       </div>
@@ -1399,7 +1607,7 @@ function makeExCard(name, defU, setup, warn) {
       <div><label>Repeticiones</label><select class="i-warm-rep" aria-label="Repeticiones de serie 0"><option value="">Sin aproximación registrada</option>${optionsHTML(Array.from({ length: 40 }, (_, i) => i + 1), '')}</select></div>
     </div></div>
     <div class="rep-selectors row2" style="margin-bottom:10px;"></div>
-    <details class="advanced"><summary>Ajustes · RIR, descanso y modalidad</summary><div class="row2" style="margin-bottom:6px;">
+    <details class="advanced"><summary>Ajustes · RIR, descanso y carga</summary><div class="row2" style="margin-bottom:6px;">
       <div>
         <label>RIR</label>
         <select class="i-rir" aria-label="RIR del ejercicio">${optionsHTML(RIR_OPTIONS, defRir)}</select>
@@ -1416,6 +1624,10 @@ function makeExCard(name, defU, setup, warn) {
         <label>Set Up</label>
         <select class="i-setup" aria-label="Set Up">${optionsHTML([...new Set([setup, "Sin ajuste", "Agarre neutro", "Agarre abierto", "Agarre cerrado", ...Array.from({length: 15}, (_,i) => `Nivel ${i+1}`), ...Array.from({length: 15}, (_,i) => `${i+1} de distancia`)])].filter(Boolean), setup || "Sin ajuste")}</select>
       </div>
+      <div>
+        <label>Incremento mínimo (<span class="step-unit"></span>)</label>
+        <input type="number" class="i-step" min="0.01" max="500" step="0.01" inputmode="decimal" onchange="saveLoadStep(this)" />
+      </div>
     </div>
     </details><div class="st-row">
       <button type="button" data-status="☑️" class="st-btn active" onclick="setSt(this,'☑️')">Cumplido</button>
@@ -1425,7 +1637,20 @@ function makeExCard(name, defU, setup, warn) {
     </div></div>
   `;
   renderRepSelectors(div);
+  refreshExerciseAdvice(div, last);
+  renderExerciseCurrent(div);
+  if (last) div.querySelector(".copy-load").onclick = () => {
+    div.querySelector(".i-w").value = last.weight;
+    setU(div.querySelector(last.unit === "lbs" ? ".unit-lbs" : ".unit-kg"), last.unit);
+    saveWorkoutDraft(true);
+  };
   return div;
+}
+
+function renderExerciseCurrent(card) {
+  const reps = [...card.querySelectorAll(".i-rep")].map(select => select.value || "—");
+  card.querySelector(".current-sets").textContent =
+    `${card.querySelector(".i-w").value} ${card.dataset.unit} · ${reps.join(" / ")} reps`;
 }
 
 function updWarm(el) {
@@ -1439,20 +1664,22 @@ function setU(btn, u) {
   btn.classList.add("active");
   c.querySelector(".w-tag").textContent = warmupTxt(c.querySelector(".i-w").value, u);
   c.querySelector(".warm-unit").textContent = u;
+  refreshExerciseAdvice(c);
+  renderExerciseCurrent(c);
 }
 function setSt(btn, st) {
   const c = btn.closest(".ex-card");
   c.dataset.status = st;
   c.querySelectorAll(".st-btn").forEach(b => b.classList.remove("active"));
   btn.classList.add("active");
-  saveWorkoutDraft();
+  saveWorkoutDraft(true);
 }
 function addExtraEx() {
   const picker = document.getElementById("extraExercise");
   const template = TEMPLATES[curSplit].find(t => t[0] === picker.value);
   if (template) document.getElementById("exList").appendChild(makeExCard(...template));
   sortExerciseCards();
-  saveWorkoutDraft();
+  if (template) saveWorkoutDraft(true);
 }
 
 function saveWorkout() {
@@ -1498,8 +1725,10 @@ function saveWorkout() {
   if (!enqueue({ type: "workout", payload: s })) return;
   localStorage.removeItem(activeDraftKey);
   activeDraftKey = "";
+  stopRestTimer();
   renderExList();
   renderProgressAndRanks();
+  renderTodayWorkout();
 
 
   toast("Sesión guardada en este dispositivo");
@@ -1817,6 +2046,42 @@ function renderRankShowcase() {
   `).join("");
 }
 
+function compareExerciseSessions(previous, current) {
+  if (!previous || !current) return "";
+  const before = calibratedPlateLoad(previous), after = calibratedPlateLoad(current);
+  const a = effectiveReps(before.reps), b = effectiveReps(after.reps);
+  const setup = exercise => String(exercise.notes || "").split(" | ")[0].split(" · RIR ")[0].trim();
+  if (!a.length || a.length !== b.length || before.unit !== after.unit ||
+      before.historicalBilateral !== after.historicalBilateral || exerciseRir(before) !== exerciseRir(after) ||
+      setup(before) !== setup(after)) return "";
+  const loadDifference = +(Number(after.weight) - Number(before.weight)).toFixed(2);
+  const repDifference = b.reduce((sum, reps, index) => sum + reps - a[index], 0);
+  if (loadDifference === 0 && repDifference > 0) {
+    return `Misma carga · +${repDifference} ${repDifference === 1 ? "repetición total" : "repeticiones totales"}`;
+  }
+  if (loadDifference > 0 && b.every((reps, index) => reps === a[index])) {
+    return `+${loadDifference} ${after.unit} con las mismas repeticiones por serie`;
+  }
+  return "";
+}
+
+function exerciseHistoryHTML(history) {
+  const recent = history.filter(exercise => effectiveReps(exercise.reps).length).slice(-6);
+  if (!recent.length) return "";
+  const change = compareExerciseSessions(recent.at(-2), recent.at(-1));
+  return `<div class="exercise-history">
+    <h3>Series efectivas recientes</h3>
+    ${change ? `<p class="tag up">${escapeOption(change)}</p>` : ""}
+    <ul>${recent.reverse().map(exercise => {
+      const record = calibratedPlateLoad(exercise);
+      const rir = exerciseRir(record);
+      const date = new Date(record.date + "T12:00:00").toLocaleDateString("es-MX", { day: "numeric", month: "short" });
+      return `<li><time class="sub" datetime="${escapeOption(record.date)}">${escapeOption(date)}</time>
+        <span>${escapeOption(record.weight)} ${escapeOption(record.unit)} · ${effectiveReps(record.reps).join(" / ")} reps${rir === null ? "" : ` · RIR ${rir}`}${record.historicalBilateral ? " · convertido" : ""}</span></li>`;
+    }).join("")}</ul>
+  </div>`;
+}
+
 function renderProgressAndRanks() {
   renderRankShowcase();
 
@@ -1879,12 +2144,13 @@ function renderProgressAndRanks() {
       }
 
       if (!exMap[canon]) {
-        exMap[canon] = { name: canon, firstKg: kg, firstDate: validDate, bestKg: kg, extraNote, volume: 0, last: e };
+        exMap[canon] = { name: canon, firstKg: kg, firstDate: validDate, bestKg: kg, extraNote, volume: 0, last: e, history: [] };
       } else {
         if (kg > exMap[canon].bestKg) exMap[canon].bestKg = kg;
       }
       exMap[canon].volume += exerciseVolume(e);
       exMap[canon].last = e;
+      exMap[canon].history.push({ ...e, date: validDate });
     });
   });
 
@@ -1941,6 +2207,7 @@ function renderProgressAndRanks() {
       <div class="tier-scale">${tiersHTML}</div>
       <div class="sub" style="margin-top:14px;">Volumen registrado: <b>${item.volume.toLocaleString('es-MX', { maximumFractionDigits: 1 })} kg·rep</b> · Incluye aproximaciones registradas</div>
       <div class="sub" style="margin-top:8px;">Último registro · ${readWarmup(item.last) ? `Serie 0: ${readWarmup(item.last).weight} ${readWarmup(item.last).unit} × ${readWarmup(item.last).reps} reps · ` : ''}Efectivas: ${escapeOption(cleanReps(item.last.reps))} reps con ${item.last.weight} ${escapeOption(item.last.unit)}${lastPosition ? ` · Posición ${lastPosition} en la sesión` : ""}</div>
+      ${exerciseHistoryHTML(item.history)}
     `;
     box.appendChild(card);
   });
@@ -2211,6 +2478,8 @@ function downloadBackup() {
   const payload = { version: 1, exportedAt: new Date().toISOString(),
     workouts, meals: nutLogs, weights, waists,
     customFoods: foods.filter(food => food.cat === "Mis Platillos Personalizados"), drafts,
+    trainingPreferences: { loadSteps: JSON.parse(localStorage.getItem(LOAD_STEPS_KEY) || "{}"),
+      restTimerEnabled: localStorage.getItem(REST_PREFERENCE_KEY) === "1" },
     pending: pendingOperations() };
   const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }));
   const link = document.createElement("a");
@@ -2454,9 +2723,26 @@ function renderToday() {
   document.getElementById("todayRing").style.setProperty('--ring',percentage+'%');
   document.getElementById("todayPercent").textContent = percentage+'%';
   document.getElementById("todayWeight").textContent = Number(weights.at(-1)?.weight || 65).toFixed(1);
-  const sessions = workouts.filter(session=>session.date===today);
-  document.getElementById("todayWorkoutTitle").textContent = sessions.length ? 'Hoy ya avanzaste' : 'Tú eliges la rutina';
-  document.getElementById("todayWorkoutNote").textContent = sessions.length ? sessions.map(s=>`Tren ${s.split.toLowerCase()}`).join(' · ')+' registrado' : 'Superior o inferior, cuando estés listo.';
+  renderTodayWorkout(today);
+}
+
+function renderTodayWorkout(today = localToday()) {
+  const draft = resumeCandidate(today);
+  const sessions = workouts.filter(session => session.date === today);
+  const title = document.getElementById("todayWorkoutTitle");
+  const note = document.getElementById("todayWorkoutNote");
+  const button = document.getElementById("todayWorkoutAction");
+  title.textContent = draft ? "Tienes una sesión en curso" : sessions.length ? "Hoy ya avanzaste" : "Tú eliges la rutina";
+  button.textContent = draft ? "Continuar sesión" : "Ir a entrenar";
+  button.classList.toggle("btn-sec", !draft);
+  if (draft) {
+    const date = draft.date === today ? "Hoy" : new Date(draft.date + "T12:00:00").toLocaleDateString("es-MX", { day: "numeric", month: "short" });
+    const series = draft.series === 1 ? "1 serie registrada" : `${draft.series} series registradas`;
+    note.textContent = `Tren ${draft.split.toLowerCase()} · ${date}${draft.series ? ` · ${series}` : ""}`;
+  } else {
+    note.textContent = sessions.length ? sessions.map(session => `Tren ${session.split.toLowerCase()}`).join(" · ") + " registrado"
+      : "Superior o inferior, cuando estés listo.";
+  }
 }
 const CHART_DAY_MS = 86400000;
 const CHART_DATE_FORMAT = new Intl.DateTimeFormat("es-MX", { day: "numeric", month: "short", timeZone: "UTC" });
@@ -2573,7 +2859,17 @@ function localToday() {
 
 window.onload = () => {
   migrateLocalSync();
-  document.getElementById("gNotes").addEventListener("change", saveWorkoutDraft);
+  document.getElementById("gNotes").addEventListener("change", () => saveWorkoutDraft(true));
+  const timerSetting = document.getElementById("restTimerEnabled");
+  timerSetting.checked = localStorage.getItem(REST_PREFERENCE_KEY) === "1";
+  const savedTimer = JSON.parse(localStorage.getItem(REST_TIMER_KEY) || "null");
+  if (timerSetting.checked && savedTimer?.deadline > Date.now()) {
+    restTimer = savedTimer;
+    document.getElementById("restTimerStatus").textContent = "Descanso en curso.";
+    showRestTimer();
+  } else if (savedTimer) {
+    localStorage.removeItem(REST_TIMER_KEY);
+  }
   document.getElementById("gRir").innerHTML = optionsHTML(RIR_OPTIONS, "RIR 2");
   document.getElementById("gRest").innerHTML = optionsHTML(REST_OPTIONS, "2:00 min");
   const t = localToday();
@@ -2613,7 +2909,10 @@ window.onload = () => {
     if (event.key?.startsWith(PENDING_PREFIX)) updateSyncBadge();
   });
   document.addEventListener("visibilitychange", () => {
-    if (!document.hidden) syncWithSheets();
+    if (!document.hidden) {
+      if (restInterval !== null) updateRestTimer();
+      syncWithSheets();
+    }
   });
   window.setInterval(() => {
     if (document.getElementById("v-today").classList.contains("active")) renderToday();
