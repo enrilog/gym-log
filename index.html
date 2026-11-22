@@ -49,6 +49,15 @@
     .nutrition-reference dl {display:grid;grid-template-columns:1fr auto;gap:6px 16px;margin:8px 0;}
     .food-source {color:var(--accent);text-underline-offset:3px;}
     .section-caption {font-size:12px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:28px 4px 12px;}
+    .meal-suggestions .sec-h {margin-bottom:12px;}
+    .meal-suggestions .seg {max-width:360px;margin-bottom:12px;}
+    .meal-gap {font-size:14px;color:var(--muted);margin-bottom:12px;}
+    .meal-option {display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0;border-top:1px solid var(--border);}
+    .meal-option h3 {font-size:15px;line-height:1.35;}
+    .meal-option p {margin-top:4px;font-size:13px;color:var(--muted);}
+    .meal-option .btn {width:auto;min-height:44px;padding:7px 11px;flex-shrink:0;}
+    .meal-note {margin:8px 0 0;}
+    @media(max-width:420px){.meal-option {align-items:flex-start;flex-direction:column;gap:8px;}}
     .training-preview {display:flex;align-items:center;gap:16px;margin:16px 0 20px;} .preview-icon {display:grid;place-items:center;width:50px;height:50px;border-radius:15px;background:#eaf3ff;color:var(--accent);flex-shrink:0;}
     .ex-card {padding:0;overflow:hidden;} summary {list-style:none;} summary::-webkit-details-marker {display:none;}
     .ex-summary {display:flex;align-items:center;gap:12px;padding:20px;min-height:88px;} .ex-summary:after {content:'+';font-size:24px;font-weight:300;color:var(--muted);margin-left:auto;}
@@ -128,7 +137,19 @@
       <div class="card"><div class="eyebrow">Tu entrenamiento</div><div class="training-preview"><div class="preview-icon" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 5v14M3 8v8M18 5v14M21 8v8M6 12h12"/></svg></div><div><h2 id="todayWorkoutTitle">Tú eliges la rutina</h2><p class="sub" id="todayWorkoutNote">Superior o inferior, cuando estés listo.</p></div></div><button class="btn btn-sec" onclick="goTab('gym')">Ir a entrenar</button></div>
       <div class="card"><div class="eyebrow">Tu objetivo</div><div class="hero-number" style="font-size:36px;"><span id="todayWeight">65.0</span> <small>kg</small></div><p class="sub">Camino a 75 kg. Paso a paso.</p><button class="btn btn-ghost" style="margin-top:16px;" onclick="goTab('prog')">Ver mi progreso</button></div>
     </div>
-    <div class="section-caption">Lo importante hoy</div><p class="sub" style="padding:0 4px;">Registra lo que comes y cómo entrenas. Tu historial hace el resto.</p>
+    <div class="card meal-suggestions" aria-labelledby="mealTitle">
+      <div class="sec-h">
+        <h2 class="sec-t" id="mealTitle">¿Qué puedo comer ahora?</h2>
+        <span class="tag" id="mealOccasion"></span>
+      </div>
+      <div class="seg" role="group" aria-label="Dónde vas a comer">
+        <button type="button" id="mealSchool" aria-pressed="false" onclick="setMealLocation('school')">Cafetería</button>
+        <button type="button" id="mealHome" aria-pressed="false" onclick="setMealLocation('home')">Casa</button>
+      </div>
+      <p class="meal-gap" id="mealGap"></p>
+      <div id="mealOptions"></div>
+      <p class="sub meal-note" id="mealNote"></p>
+    </div>
   </section>
   <!-- VISTA 1: ENTRENO -->
   <section id="v-gym" class="view"><div class="page-heading"><div class="eyebrow">Un ejercicio a la vez</div><h1>Entrena a tu ritmo.</h1><p class="sub">Abre un ejercicio, registra tus series y sigue adelante.</p></div>
@@ -1511,12 +1532,7 @@ function renderQuickFoods() {
         index = foods.length - 1;
         saveLocal();
       }
-      document.getElementById("fSearch").value = "";
-      document.getElementById("fCategory").value = "";
-      renderFoodSel();
-      document.getElementById("fSel").value = index;
-      configureFoodQuantity(true);
-      prevFood();
+      selectCatalogFood(index);
       document.getElementById("foodCatalog").scrollIntoView({behavior:"smooth", block:"start"});
     };
     box.appendChild(button);
@@ -2001,12 +2017,24 @@ async function flushQueue() {
   saveLocal();
 }
 
-function openTodayFood() {
+function selectCatalogFood(index, amount) {
+  document.getElementById("fSearch").value = "";
+  document.getElementById("fCategory").value = "";
+  renderFoodSel();
+  document.getElementById("fSel").value = index;
+  configureFoodQuantity(true);
+  if (amount !== undefined) document.getElementById("fQty").value = amount;
+  prevFood();
+}
+
+function openTodayFood(index, amount) {
   document.getElementById("nDate").value = localToday();
   renderNut();
   goTab('nut');
+  const hasSuggestion = Number.isInteger(index) && Boolean(foods[index]);
+  if (hasSuggestion) selectCatalogFood(index, amount);
   document.getElementById("foodCatalog").scrollIntoView({behavior:'smooth',block:'start'});
-  document.getElementById("fSearch").focus({preventScroll:true});
+  document.getElementById(hasSuggestion ? "fQty" : "fSearch").focus({preventScroll:true});
 }
 function formatNutrition(value) {
   return (Number(value) || 0).toLocaleString("es-MX", { maximumFractionDigits: 1 });
@@ -2027,12 +2055,165 @@ function renderNutritionMetrics(id, totals, keys) {
       <div class="bar-bg" aria-hidden="true"><div class="bar-fg" style="width:${progress}%"></div></div></div>`;
   }).join("");
 }
+
+// Las porciones usan las unidades del catálogo. El presupuesto guía una sola comida.
+const MEAL_OPTIONS = {
+  school: [
+    ["Torta de pollo", [1], "meal"],
+    ["Tacos de bistec o pechuga", [1], "meal"],
+    ["Molletes con frijoles y queso gratinado", [1], "breakfast"],
+    ["Huevos rancheros", [140, 200, 260], "breakfast"],
+    ["Fajita de pollo en tortilla", [100, 150, 200, 250], "meal"],
+    ["Quesadilla de queso en tortilla de maíz", [1, 2, 3], "both"],
+    ["Sopa de tortilla", [150, 225, 300], "both"],
+    ["Nuggets de pollo empanizados", [60, 90, 120, 160], "both"],
+    ["Pechuga de pollo a la plancha", [60, 100, 150, 200], "meal"],
+    ["Ensalada César con pollo sin aderezo", [100, 160, 220, 280], "meal"],
+    ["Arroz frito con pollo", [100, 150, 200, 280, 350], "meal"],
+    ["Arroz cocido blanco o rojo", [80, 125, 180, 240], "both"],
+    ["Avena cocida con leche", [125, 195, 265, 330], "breakfast"],
+    ["Licuado de plátano con leche y avena", [1], "breakfast"],
+    ["Cacahuates naturales sin sal", [15, 25, 35, 45], "snack"],
+    ["Yogur griego natural descremado por peso", [100, 150, 200, 250], "snack"],
+    ["Leche entera natural", [150, 250, 330, 400], "snack"],
+    ["Plátano", [1, 2], "snack"],
+    ["Guacamole", [30, 50, 75, 100], "both"]
+  ],
+  home: [
+    ["Huevo revuelto con jamón", [1, 2, 3], "breakfast"],
+    ["Pechuga de pollo asada sin piel", [60, 100, 150, 200], "meal"],
+    ["Arroz frito con pollo", [100, 160, 220, 300, 360], "meal"],
+    ["Frijoles de la olla", [100, 150, 220, 290], "meal"],
+    ["Arroz blanco cocido sin aceite", [80, 125, 180, 240, 300], "both"],
+    ["Espagueti rojo o blanco a la crema", [100, 150, 200, 250, 300], "meal"],
+    ["Arrachera de res a la parrilla", [80, 120, 160, 200], "meal"],
+    ["Avena cocida con leche", [125, 195, 265, 330], "breakfast"],
+    ["Licuado de plátano con leche y avena", [1], "breakfast"],
+    ["Atún claro en agua drenado", [50, 80, 105, 150], "both"],
+    ["Yogur griego natural descremado por peso", [100, 150, 200, 250], "snack"],
+    ["Queso cottage bajo en grasa", [80, 120, 160, 200], "snack"],
+    ["Leche entera natural", [150, 250, 330, 400], "snack"],
+    ["Plátano", [1, 2], "snack"],
+    ["Pan integral de caja", [1, 2, 3, 4], "both"],
+    ["Almendras naturales", [15, 25, 35, 45], "snack"],
+    ["Aguacate por peso", [40, 70, 100, 130], "both"],
+    ["Mantequilla de maní natural", [1, 2], "snack"]
+  ]
+};
+
+function mealWindow(hour) {
+  if (hour < 5 || hour >= 22) return { label: "Colación nocturna", limit: 300, style: "snack" };
+  if (hour < 10) return { label: "Desayuno", limit: 520, style: "breakfast" };
+  if (hour < 12 || (hour >= 16 && hour < 18)) return { label: "Colación", limit: 350, style: "snack" };
+  if (hour < 16) return { label: "Comida", limit: 720, style: "meal" };
+  return { label: "Cena", limit: 580, style: "meal" };
+}
+
+function mealGaps(totals) {
+  return Object.fromEntries(Object.entries(NUTRITION_GOALS).map(([key, goal]) => [
+    key, Math.max(0, goal.target - totals[key])
+  ]));
+}
+
+function suggestMeals(catalog, options, remaining, window) {
+  const snack = window.style === "snack";
+  const calorieAim = Math.min(remaining.cal, window.limit);
+  const macroAim = {
+    prot: Math.min(remaining.prot, snack ? 25 : 45),
+    carb: Math.min(remaining.carb, snack ? 50 : 95),
+    fat: Math.min(remaining.fat, snack ? 18 : 28)
+  };
+  const minimum = { prot: 4, carb: 8, fat: 3 };
+  const macroKeys = Object.keys(macroAim).filter(key => remaining[key] >= minimum[key]);
+  const priority = key => 0.35 + remaining[key] / NUTRITION_GOALS[key].target;
+  const priorityTotal = macroKeys.reduce((sum, key) => sum + priority(key), 0);
+  const macroCalories = macroKeys.reduce((sum, key) => sum + macroAim[key] * (key === "fat" ? 9 : 4), 0);
+  const ceiling = Math.min(window.limit * 1.12, Math.max(100, calorieAim + 95, macroCalories + 70));
+  const nutrientKeys = Object.keys(macroAim);
+  const penaltyScale = { prot: 35, carb: 65, fat: 18 };
+  const byName = new Map(catalog.map((food, index) => [foodKey(food.name), { food, index }]));
+  return options.flatMap(([name, amounts, style]) => {
+    const entry = byName.get(foodKey(name));
+    if (!entry) return [];
+    const { food, index } = entry;
+    const measured = ["grams", "milliliters"].includes(food.quantityMode);
+    const portions = amounts.flatMap(amount => {
+      const quantity = measured ? amount / 100 : amount;
+      const nutrients = foodNutritionForPortion(food, quantity);
+      if (nutrients.cal > ceiling || nutrients.cal <= 0) return [];
+      const fit = calorieAim >= 45
+        ? 1 - Math.abs(nutrients.cal - calorieAim) / Math.max(140, calorieAim)
+        : -nutrients.cal / 300;
+      const coverage = macroKeys.reduce((sum, key) =>
+        sum + priority(key) * Math.min(nutrients[key] / macroAim[key], 1), 0) / (priorityTotal || 1);
+      const excess = nutrientKeys.reduce((sum, key) =>
+        sum + Math.max(0, nutrients[key] - remaining[key]) / penaltyScale[key], 0);
+      const appropriate = style === window.style || style === "both";
+      const timing = appropriate ? (style === "breakfast" ? 0.75 : 0.14) : 0;
+      const score = fit + 2.15 * coverage - 0.48 * excess + timing;
+      return [{ food, index, amount, quantity, nutrients, score }];
+    }).sort((a, b) => b.score - a.score);
+    return portions.slice(0, 1);
+  }).sort((a, b) => b.score - a.score).slice(0, 3);
+}
+
+let mealLocation = localStorage.getItem("gym_meal_location");
+let lastMealRender = "";
+
+function setMealLocation(location) {
+  mealLocation = location;
+  localStorage.setItem("gym_meal_location", location);
+  renderToday();
+}
+
+function renderMealSuggestions(totals, now = new Date()) {
+  const hour = now.getHours();
+  const weekday = now.getDay() >= 1 && now.getDay() <= 5;
+  const location = Object.hasOwn(MEAL_OPTIONS, mealLocation) ? mealLocation
+    : weekday && hour >= 7 && hour < 17 ? "school" : "home";
+  const window = mealWindow(hour);
+  const remaining = mealGaps(totals);
+  const signature = JSON.stringify([location, window.label, remaining, foods.length]);
+  if (signature === lastMealRender) return;
+  lastMealRender = signature;
+  document.getElementById("mealOccasion").textContent = window.label;
+  for (const [id, value] of [["mealSchool", "school"], ["mealHome", "home"]]) {
+    const button = document.getElementById(id);
+    button.classList.toggle("active", location === value);
+    button.setAttribute("aria-pressed", String(location === value));
+  }
+  const gap = Object.entries(remaining).filter(([, value]) => value >= 0.05).map(([key, value]) =>
+    `${formatNutrition(value)} ${NUTRITION_GOALS[key].unit}${key === "cal" ? "" : " de " + NUTRITION_GOALS[key].label.toLowerCase()}`
+  );
+  const nearGoal = remaining.cal < 45 && remaining.prot < 4 && remaining.carb < 8 && remaining.fat < 3;
+  const box = document.getElementById("mealOptions");
+  const note = document.getElementById("mealNote");
+  document.getElementById("mealGap").textContent = gap.length ? `Te faltan ${gap.join(" · ")}.` : "Alcanzaste las metas registradas de hoy.";
+  if (nearGoal) {
+    box.textContent = gap.length ? "Estás cerca de tus metas de hoy." : "";
+    note.textContent = "";
+    return;
+  }
+  const suggestions = suggestMeals(foods, MEAL_OPTIONS[location], remaining, window);
+  box.innerHTML = suggestions.map(({ food, index, quantity, amount, nutrients }) => {
+    const title = food.name.replace(/\s*\(100 (?:g|ml)\)$/, "");
+    const portion = foodQuantityText({ name: food.name, qty: quantity });
+    return `<article class="meal-option"><div><h3>${escapeOption(title)}</h3><p>
+      ${escapeOption(portion)} · <strong>${formatNutrition(nutrients.cal)} kcal</strong></p>
+      <p>${formatNutrition(nutrients.prot)} g proteína · ${formatNutrition(nutrients.carb)} g carbohidratos · ${formatNutrition(nutrients.fat)} g grasas</p>
+      </div><button type="button" class="btn btn-sec" onclick="openTodayFood(${index}, ${amount})" aria-label="Ver ${escapeOption(title)} en el catálogo">Ver en catálogo</button></article>`;
+  }).join("");
+  if (!suggestions.length) box.textContent = "Revisa el catálogo para elegir una porción que se ajuste a tu ingesta de hoy.";
+  note.textContent = location === "school" ? "Opciones típicas. La disponibilidad y las porciones dependen del menú." : "Valores estimados según las porciones del catálogo.";
+}
+
 function renderToday() {
   if (!document.getElementById("todayCalories")) return;
   const today = localToday();
   document.getElementById("todayDate").textContent = new Date(today + 'T12:00:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
   const items = nutLogs[today] || [];
   const totals = nutritionTotals(items);
+  renderMealSuggestions(totals);
   const calories = totals.cal;
   const target = NUTRITION_GOALS.cal.target;
   const percentage = Math.max(0, Math.min(100, Math.round(calories / target * 100)));
@@ -2190,6 +2371,9 @@ window.onload = () => {
   renderToday();
   goTab("today");
   pullFromSheets();
+  window.setInterval(() => {
+    if (document.getElementById("v-today").classList.contains("active")) renderToday();
+  }, 60000);
 };
 </script>
 </body>
