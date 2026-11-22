@@ -75,6 +75,21 @@
     .weekly-periods div {padding:10px;border-radius:10px;background:var(--input);}
     .weekly-periods b {display:block;}
     .weekly-guidance {margin:10px 0;}
+    .daily-quote blockquote {margin:8px 0;font-size:19px;font-weight:600;line-height:1.4;letter-spacing:-.025em;}
+    .daily-quote a {color:var(--accent);text-underline-offset:3px;}
+    .training-week-summary {padding:12px;background:var(--input);border-radius:12px;margin:12px 0;}
+    .training-week-summary p + p {margin-top:4px;}
+    .training-week-navigation {display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;}
+    .training-week-navigation .pill,.training-week-actions .pill,.training-calendar-link {min-height:44px;}
+    .training-week-days {list-style:none;padding:0;margin:10px 0 14px;}
+    .training-week-days li {display:grid;grid-template-columns:1fr minmax(0,1.35fr);align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--border);}
+    .training-week-days li[aria-current=date] strong {color:var(--accent);}
+    .training-week-days .tag {font-size:12px;display:inline-block;margin-bottom:3px;}
+    .training-week-actions {display:flex;flex-wrap:wrap;gap:8px;}
+    #currentTrainingWeek[hidden],#copyPreviousTrainingPlan[hidden] {display:none;}
+    .training-plan-fields {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0;}
+    .training-plan-fields label {margin-bottom:4px;}
+    .training-calendar-link {margin-top:6px;}
     @media(max-width:420px){.meal-option {align-items:flex-start;flex-direction:column;gap:8px;}}
     .training-preview {display:flex;align-items:center;gap:16px;margin:16px 0 20px;} .preview-icon {display:grid;place-items:center;width:50px;height:50px;border-radius:15px;background:#eaf3ff;color:var(--accent);flex-shrink:0;}
     .rest-preference {display:flex;align-items:center;gap:10px;margin:16px 0 0;font-size:14px;}
@@ -167,9 +182,15 @@
         <div class="nutrition-metrics" id="todayMacros"></div>
         <div class="actions"><button class="btn" onclick="openTodayFood()">Registrar comida</button><button class="btn btn-sec" onclick="goTab('nut')">Ver comidas</button></div>
       </div>
-      <div class="card"><div class="eyebrow">Tu entrenamiento</div><div class="training-preview"><div class="preview-icon" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 5v14M3 8v8M18 5v14M21 8v8M6 12h12"/></svg></div><div><h2 id="todayWorkoutTitle">Tú eliges la rutina</h2><p class="sub" id="todayWorkoutNote">Superior o inferior, cuando estés listo.</p></div></div><button type="button" class="btn btn-sec" id="todayWorkoutAction" onclick="continueWorkout()">Ir a entrenar</button></div>
+      <div class="card"><div class="eyebrow">Tu entrenamiento</div><div class="training-preview"><div class="preview-icon" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 5v14M3 8v8M18 5v14M21 8v8M6 12h12"/></svg></div><div><h2 id="todayWorkoutTitle">Tú eliges la rutina</h2><p class="sub" id="todayWorkoutNote">Superior o inferior, cuando estés listo.</p></div></div><button type="button" class="btn btn-sec" id="todayWorkoutAction" onclick="continueWorkout()">Ir a entrenar</button>
+        <button type="button" class="btn btn-ghost training-calendar-link" onclick="showTrainingCalendar()">Ver calendario semanal</button></div>
       <div class="card"><div class="eyebrow">Tu objetivo</div><div class="hero-number" style="font-size:36px;"><span id="todayWeight">65.0</span> <small>kg</small></div><p class="sub">Camino a 75 kg. Paso a paso.</p><button class="btn btn-ghost" style="margin-top:16px;" onclick="goTab('prog')">Ver mi progreso</button></div>
     </div>
+    <figure class="card daily-quote" aria-labelledby="dailyQuoteTitle">
+      <figcaption class="eyebrow" id="dailyQuoteTitle">Frase del día</figcaption>
+      <blockquote id="quoteText"></blockquote>
+      <p class="sub"><span id="quoteAuthor"></span> · <a id="quoteSource" target="_blank" rel="noopener noreferrer"></a></p>
+    </figure>
     <div class="card meal-suggestions" aria-labelledby="mealTitle">
       <div class="sec-h">
         <h2 class="sec-t" id="mealTitle">¿Qué puedo comer ahora?</h2>
@@ -315,6 +336,21 @@
 
   <!-- VISTA 3: PROGRESO, TIEMPO Y RANGOS MUNDIALES -->
   <section id="v-prog" class="view"><div class="page-heading"><h1>Progreso</h1></div>
+    <div class="card" aria-labelledby="trainingWeekTitle">
+      <div class="sec-h"><h2 class="sec-t" id="trainingWeekTitle">Tu semana de entrenamiento</h2></div>
+      <div class="training-week-navigation">
+        <button type="button" class="pill" onclick="moveTrainingCalendar(-1)" aria-label="Semana anterior">Anterior</button>
+        <p class="sub" id="trainingWeekRange" role="status"></p>
+        <button type="button" class="pill" onclick="moveTrainingCalendar(1)" aria-label="Semana siguiente">Siguiente</button>
+      </div>
+      <div class="training-week-summary" id="trainingWeekSummary"></div>
+      <ol class="training-week-days" id="trainingWeekDays" aria-label="Calendario semanal de entrenamiento"></ol>
+      <div class="training-week-actions">
+        <button type="button" class="pill" onclick="openTrainingPlan()">Editar plan semanal</button>
+        <button type="button" class="pill" id="currentTrainingWeek" onclick="showTrainingCalendar()">Esta semana</button>
+      </div>
+      <p class="sub" style="margin-top:8px;">El plan se guarda en este dispositivo.</p>
+    </div>
     <div class="card" aria-labelledby="weeklyTitle">
       <div class="sec-h"><h2 class="sec-t" id="weeklyTitle">Revisión semanal hacia los 75 kg</h2></div>
       <p class="sub">Compara dos periodos de 7 días cerrados. Ritmo objetivo de +0.25 a +0.35 kg por semana.</p>
@@ -449,6 +485,18 @@
 </main>
 
 <div id="toast" class="toast">Guardado</div>
+<dialog id="trainingPlanDialog" class="template-dialog" aria-labelledby="trainingPlanTitle">
+  <form onsubmit="saveTrainingPlan(event)">
+    <h2 class="sec-t" id="trainingPlanTitle">Plan semanal</h2>
+    <p class="sub" id="trainingPlanRange" style="margin:6px 0 10px;"></p>
+    <button type="button" class="pill" id="copyPreviousTrainingPlan" onclick="copyPreviousTrainingPlan()">Usar plan de la semana anterior</button>
+    <div class="training-plan-fields" id="trainingPlanFields"></div>
+    <div class="actions" style="margin-top:12px;">
+      <button type="submit" class="btn">Guardar plan</button>
+      <button type="button" class="btn btn-sec" onclick="document.getElementById('trainingPlanDialog').close()">Cancelar</button>
+    </div>
+  </form>
+</dialog>
 <dialog id="foodEdit" aria-labelledby="foodEditTitle" style="margin:auto;width:min(92vw,400px);padding:20px;border:1px solid var(--border);border-radius:16px;color:var(--text);">
   <form onsubmit="submitFoodEdit(event)">
     <h2 id="foodEditTitle" class="sec-t">Editar porción</h2>
@@ -1429,10 +1477,12 @@ function resumeCandidate(today = localToday()) {
 }
 
 function continueWorkout() {
-  const draft = resumeCandidate();
-  if (draft) {
-    document.getElementById("gDate").value = draft.date;
-    changeSplit(draft.split);
+  const today = localToday();
+  const draft = resumeCandidate(today);
+  const split = draft?.split || currentTrainingWeek(today).nextSplit;
+  if (split) {
+    document.getElementById("gDate").value = draft?.date || today;
+    changeSplit(split);
   }
   goTab("gym");
 }
@@ -2307,6 +2357,7 @@ function exerciseHistoryHTML(history) {
 
 function renderProgressAndRanks() {
   renderRankShowcase();
+  if (document.getElementById("v-prog").classList.contains("active")) renderTrainingWeek();
 
   const bw = (weights[weights.length - 1] || { weight: 65 }).weight;
   document.getElementById("rankWeightNote").textContent =
@@ -2714,6 +2765,7 @@ function downloadBackup() {
     trainingPreferences: { loadSteps: JSON.parse(localStorage.getItem(LOAD_STEPS_KEY) || "{}"),
       restTimerEnabled: localStorage.getItem(REST_PREFERENCE_KEY) === "1" },
     nutritionPreferences,
+    trainingPlans: readTrainingPlans(),
     pending: pendingOperations() };
   const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }));
   const link = document.createElement("a");
@@ -3081,6 +3133,7 @@ function renderMealSuggestions(totals, now = new Date()) {
 function renderToday() {
   if (!document.getElementById("todayCalories")) return;
   const today = localToday();
+  renderDailyQuote(today);
   document.getElementById("todayDate").textContent = new Date(today + 'T12:00:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
   const items = nutLogs[today] || [];
   const totals = nutritionTotals(items);
@@ -3102,24 +3155,238 @@ function renderToday() {
 
 function renderTodayWorkout(today = localToday()) {
   const draft = resumeCandidate(today);
-  const sessions = workouts.filter(session => session.date === today);
+  const week = currentTrainingWeek(today);
+  const day = week.days.find(item => item.date === today);
+  const next = week.nextSplit;
   const title = document.getElementById("todayWorkoutTitle");
   const note = document.getElementById("todayWorkoutNote");
   const button = document.getElementById("todayWorkoutAction");
-  title.textContent = draft ? "Tienes una sesión en curso" : sessions.length ? "Hoy ya avanzaste" : "Tú eliges la rutina";
-  button.textContent = draft ? "Continuar sesión" : "Ir a entrenar";
-  button.classList.toggle("btn-sec", !draft);
+  button.textContent = draft ? "Continuar sesión" : next ? `Abrir tren ${next.toLowerCase()}` : "Ir a entrenar";
+  button.classList.toggle("btn-sec", !draft && !next);
   if (draft) {
+    title.textContent = "Tienes una sesión en curso";
     const date = draft.date === today ? "Hoy" : new Date(draft.date + "T12:00:00").toLocaleDateString("es-MX", { day: "numeric", month: "short" });
     const series = draft.series === 1 ? "1 serie registrada" : `${draft.series} series registradas`;
     note.textContent = `Tren ${draft.split.toLowerCase()} · ${date}${draft.series ? ` · ${series}` : ""}`;
+  } else if (next) {
+    const remaining = week.remaining[next];
+    title.textContent = day.plan === next ? `Hoy toca tren ${next.toLowerCase()}` : `Sigue con tren ${next.toLowerCase()}`;
+    note.textContent = remaining === 1 ? `Te queda una sesión de tren ${next.toLowerCase()} esta semana.`
+      : `Te quedan ${remaining} sesiones de tren ${next.toLowerCase()} esta semana.`;
+  } else if (day.plan === "Descanso") {
+    title.textContent = "Hoy tienes descanso programado";
+    note.textContent = day.recorded.length ? `También registraste tren ${day.recorded.join(" y ").toLowerCase()}.`
+      : "Tu descanso forma parte del plan semanal.";
   } else {
-    note.textContent = sessions.length ? sessions.map(session => `Tren ${session.split.toLowerCase()}`).join(" · ") + " registrado"
+    title.textContent = day.recorded.length ? "Hoy ya avanzaste" : week.planned && week.completed === week.planned ? "Cumpliste tu plan semanal" : "Tú eliges la rutina";
+    note.textContent = day.recorded.length ? day.recorded.map(split => `Tren ${split.toLowerCase()} registrado`).join(" · ")
       : "Superior o inferior, cuando estés listo.";
   }
 }
 const CHART_DAY_MS = 86400000;
 const CHART_DATE_FORMAT = new Intl.DateTimeFormat("es-MX", { day: "numeric", month: "short", timeZone: "UTC" });
+
+const DAILY_QUOTES = [
+  ["La diligencia es madre de la buena ventura.", "Miguel de Cervantes", "Don Quijote de la Mancha", "https://www.cervantesvirtual.com/obra-visor/el-ingenioso-hidalgo-don-quijote-de-la-mancha--0/html/fef04e52-82b1-11df-acc7-002185ce6064_50.html"],
+  ["La presión es un privilegio.", "Billie Jean King", "US Open · traducción", "https://www.usopen.org/amp/en_US/news/articles/2024-07-19/billie_jean_king_reveals_origin_of_iconic_quote_pressure_is_a_privilege.html"],
+  ["Mientras aplazamos, la vida pasa.", "Séneca", "Cartas a Lucilio, 1 · traducción", "https://la.wikisource.org/wiki/Epistulae_morales_ad_Lucilium/Liber_I"],
+  ["Un niño, un maestro, una pluma y un libro pueden cambiar el mundo.", "Malala Yousafzai", "Discurso en la ONU · traducción", "https://malala.org/news-and-voices/malala-un-speech"],
+  ["Se hace camino al andar.", "Antonio Machado", "Proverbios y cantares, XXIX", "https://es.wikisource.org/wiki/Proverbios_y_cantares_(Campos_de_Castilla)"],
+  ["Ningún ser humano tiene límites.", "Eliud Kipchoge", "INEOS 1:59 Challenge · traducción", "https://www.ineos159challenge.com/news/eliud-kipchoge-achieves-his-moon-landing-moment"],
+  ["La fe es el pájaro que siente la luz y canta cuando el alba aún está oscura.", "Rabindranath Tagore", "Fireflies · traducción", "https://bichitra.jdvu.ac.in/manuscript/manuscript_viewer.php?manid=8&mname=RBVBMS_008"],
+  ["¿Hasta cuándo esperarás para considerarte digno de lo mejor?", "Epicteto", "Manual, 51 · traducción", "https://people.ucsc.edu/~jbowin/Ancient/encheiridion.pdf"]
+];
+let lastQuoteDate = "";
+
+function dailyQuote(date) {
+  const day = Math.floor(Date.parse(date) / CHART_DAY_MS);
+  return DAILY_QUOTES[((day % DAILY_QUOTES.length) + DAILY_QUOTES.length) % DAILY_QUOTES.length];
+}
+
+function renderDailyQuote(date) {
+  if (lastQuoteDate === date) return;
+  const [quote, author, source, url] = dailyQuote(date);
+  const text = document.getElementById("quoteText");
+  text.textContent = `«${quote}»`;
+  text.setAttribute("cite", url);
+  document.getElementById("quoteAuthor").textContent = author;
+  const link = document.getElementById("quoteSource");
+  link.textContent = source;
+  link.href = url;
+  lastQuoteDate = date;
+}
+
+const TRAINING_PLAN_KEY = "gym_training_plans_v1";
+const TRAINING_SPLITS = ["Superior", "Inferior"];
+const TRAINING_DAY_FORMAT = new Intl.DateTimeFormat("es-MX", { weekday: "long", timeZone: "UTC" });
+let trainingCalendarWeek = "";
+let trainingPlanEditorWeek = "";
+
+function trainingDateOffset(date, days) {
+  return new Date(Date.parse(date) + days * CHART_DAY_MS).toISOString().slice(0, 10);
+}
+
+function trainingWeekStart(date) {
+  const weekday = new Date(date).getUTCDay();
+  return trainingDateOffset(date, -((weekday + 6) % 7));
+}
+
+function readTrainingPlans() {
+  return JSON.parse(localStorage.getItem(TRAINING_PLAN_KEY) || "{}");
+}
+
+function trainingWeekModel(sessions, plan, start, today) {
+  const plannedBySplit = { Superior: 0, Inferior: 0 };
+  const recordedBySplit = { Superior: 0, Inferior: 0 };
+  const end = trainingDateOffset(start, 6);
+  const byDate = new Map();
+  for (const session of sessions) {
+    if (!session.date || session.date < start || session.date > end || session.date > today || !session.exercises?.length) continue;
+    const split = TRAINING_SPLITS.find(value => value.toLowerCase() === String(session.split).trim().toLowerCase());
+    if (!split) continue;
+    if (!byDate.has(session.date)) byDate.set(session.date, new Set());
+    byDate.get(session.date).add(split);
+  }
+  const days = Array.from({ length: 7 }, (_, index) => {
+    const date = trainingDateOffset(start, index);
+    const selected = plan?.[index];
+    const planned = TRAINING_SPLITS.includes(selected) || selected === "Descanso" ? selected : "";
+    const recorded = [...(byDate.get(date) || [])];
+    if (TRAINING_SPLITS.includes(planned)) plannedBySplit[planned]++;
+    recorded.forEach(split => recordedBySplit[split]++);
+    return { date, plan: planned, recorded };
+  });
+  const planned = plannedBySplit.Superior + plannedBySplit.Inferior;
+  const recorded = recordedBySplit.Superior + recordedBySplit.Inferior;
+  const remaining = Object.fromEntries(TRAINING_SPLITS.map(split => [split, Math.max(0, plannedBySplit[split] - recordedBySplit[split])]));
+  const day = days.find(item => item.date === today);
+  const order = [day?.plan, ...days.filter(item => item.date > today).map(item => item.plan), ...days.map(item => item.plan)];
+  const nextSplit = day && day.plan !== "Descanso"
+    ? order.find(split => remaining[split] > 0 && !day.recorded.includes(split)) || "" : "";
+  return { start, end, days, planned, recorded, completed: planned - remaining.Superior - remaining.Inferior, nextSplit, remaining };
+}
+
+function currentTrainingWeek(today = localToday()) {
+  const start = trainingWeekStart(today);
+  return trainingWeekModel(workouts, readTrainingPlans()[start], start, today);
+}
+
+function latestTrainingImprovement(sessions, from, to) {
+  const previous = new Map();
+  const dated = sessions.filter(session => session.date && session.date <= to).sort((a, b) => a.date.localeCompare(b.date));
+  let improvement = null;
+  for (const session of dated) {
+    for (const exercise of session.exercises || []) {
+      const name = canonicalExerciseName(exercise.name);
+      if (!name || name === "__EXCLUIDO__" || !effectiveReps(exercise.reps).length) continue;
+      const key = JSON.stringify([session.split, name]);
+      const last = previous.get(key);
+      if (session.date >= from && last && last.date < session.date && exercise.status !== "❎") {
+        const change = compareExerciseSessions(last.exercise, exercise);
+        if (change) improvement = { name, change, date: session.date };
+      }
+      previous.set(key, { exercise, date: session.date });
+    }
+  }
+  return improvement;
+}
+
+function trainingCalendarState(day, today) {
+  if (day.recorded.length) return { badge: "Registrado", style: "up" };
+  if (day.plan === "Descanso") return { badge: "Descanso programado", style: "" };
+  if (day.date <= today) return { badge: "Sin registro", style: day.plan ? "keep" : "" };
+  return day.plan ? { badge: "Programado", style: "" } : { badge: "Sin plan", style: "" };
+}
+
+function trainingWeekRange(start, end) {
+  return `${CHART_DATE_FORMAT.format(new Date(start))} – ${CHART_DATE_FORMAT.format(new Date(end))} ${end.slice(0, 4)}`;
+}
+
+function renderTrainingWeek() {
+  const today = localToday();
+  const current = trainingWeekStart(today);
+  const start = trainingCalendarWeek || current;
+  const week = trainingWeekModel(workouts, readTrainingPlans()[start], start, today);
+  document.getElementById("trainingWeekRange").textContent = trainingWeekRange(week.start, week.end);
+  document.getElementById("currentTrainingWeek").hidden = start === current;
+  document.getElementById("trainingWeekDays").innerHTML = week.days.map(day => {
+    const state = trainingCalendarState(day, today);
+    const recorded = day.recorded.join(" y ");
+    const differentPlan = recorded && day.plan && !day.recorded.includes(day.plan);
+    const detail = [recorded || (day.plan !== "Descanso" ? day.plan : ""),
+      differentPlan ? `Plan · ${day.plan}` : ""].filter(Boolean).join(" · ");
+    return `<li${day.date === today ? ' aria-current="date"' : ''}>
+      <div><strong>${TRAINING_DAY_FORMAT.format(new Date(day.date))}${day.date === today ? " · hoy" : ""}</strong>
+        <div class="sub"><time datetime="${day.date}">${CHART_DATE_FORMAT.format(new Date(day.date))}</time></div></div>
+      <div><span class="tag ${state.style}">${state.badge}</span>${detail ? `<p class="sub">${detail}</p>` : ""}</div></li>`;
+  }).join("");
+
+  const complete = week.planned > 0 && week.completed === week.planned;
+  const improvement = latestTrainingImprovement(workouts, start, week.end < today ? week.end : today);
+  const weightReview = start === current ? weeklyNutritionReview(weights, nutLogs, nutritionPreferences.completeDays || {}, today) : null;
+  let highlight = week.recorded ? `${week.recorded} ${week.recorded === 1 ? "sesión registrada" : "sesiones registradas"} esta semana.`
+    : "Todavía no hay sesiones de entrenamiento registradas.";
+  if (complete) highlight = "Cumpliste todas las sesiones de tu plan.";
+  else if (improvement) highlight = `Mejoraste en ${improvement.name.toLowerCase()}. ${improvement.change}.`;
+  else if (weightReview?.status === "within") highlight = "Tu tendencia de peso de los últimos 7 días va dentro del ritmo objetivo.";
+  const day = week.days.find(item => item.date === today);
+  let next = "Elige tus días de entrenamiento y descanso.";
+  if (start < current) next = "Abre esta semana para planear tu siguiente sesión.";
+  else if (day?.plan === "Descanso") next = "Hoy tienes descanso programado.";
+  else if (week.nextSplit) next = `Abre tren ${week.nextSplit.toLowerCase()} desde Hoy cuando quieras retomar.`;
+  else if (complete) next = "Puedes preparar el plan de la siguiente semana.";
+  else if (week.planned) next = start > current ? "Tu plan está listo para cuando empiece la semana." : "Consulta el calendario para tu próxima sesión.";
+  document.getElementById("trainingWeekSummary").innerHTML = `<p><strong>${escapeOption(highlight)}</strong></p>
+    ${week.planned ? `<p class="sub">${week.completed} de ${week.planned} sesiones del plan</p>` : ""}
+    <p class="sub">${escapeOption(next)}</p>`;
+}
+
+function showTrainingCalendar() {
+  trainingCalendarWeek = "";
+  goTab("prog");
+}
+
+function moveTrainingCalendar(weeks) {
+  trainingCalendarWeek = trainingDateOffset(trainingCalendarWeek || trainingWeekStart(localToday()), weeks * 7);
+  renderTrainingWeek();
+}
+
+function openTrainingPlan() {
+  const start = trainingCalendarWeek || trainingWeekStart(localToday());
+  trainingPlanEditorWeek = start;
+  const plans = readTrainingPlans();
+  document.getElementById("trainingPlanRange").textContent = trainingWeekRange(start, trainingDateOffset(start, 6));
+  document.getElementById("copyPreviousTrainingPlan").hidden = !plans[trainingDateOffset(start, -7)];
+  document.getElementById("trainingPlanFields").innerHTML = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(trainingDateOffset(start, index));
+    return `<div><label for="trainingPlanDay${index}">${TRAINING_DAY_FORMAT.format(date)} · ${CHART_DATE_FORMAT.format(date)}</label>
+      <select id="trainingPlanDay${index}"><option value="">Sin plan</option>${optionsHTML([...TRAINING_SPLITS, "Descanso"], plans[start]?.[index])}</select></div>`;
+  }).join("");
+  document.getElementById("trainingPlanDialog").showModal();
+}
+
+function copyPreviousTrainingPlan() {
+  const previous = readTrainingPlans()[trainingDateOffset(trainingPlanEditorWeek, -7)];
+  if (!previous) return;
+  previous.forEach((value, day) => { document.getElementById(`trainingPlanDay${day}`).value = value; });
+}
+
+function saveTrainingPlan(event) {
+  event.preventDefault();
+  const plans = readTrainingPlans();
+  const plan = Array.from({ length: 7 }, (_, day) => document.getElementById(`trainingPlanDay${day}`).value);
+  if (plan.some(Boolean)) plans[trainingPlanEditorWeek] = plan;
+  else delete plans[trainingPlanEditorWeek];
+  try {
+    localStorage.setItem(TRAINING_PLAN_KEY, JSON.stringify(plans));
+  } catch {
+    return toast("No se pudo guardar el plan en este dispositivo");
+  }
+  document.getElementById("trainingPlanDialog").close();
+  renderTodayWorkout();
+  renderTrainingWeek();
+  toast("Plan semanal guardado");
+}
 
 function dailyNutritionRows(logs, metric) {
   const totals = new Map();
@@ -3214,6 +3481,7 @@ function renderProgressCharts() {
   renderWaistChart();
   renderDailyNutritionChart();
   renderWeeklyReview();
+  renderTrainingWeek();
 }
 function goTab(name) {
   document.querySelectorAll(".view").forEach(view=>view.classList.toggle('active',view.id==='v-'+name));
