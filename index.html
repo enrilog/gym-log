@@ -561,6 +561,12 @@ function readWarmup(exercise) {
   return Number.isFinite(weight) && reps > 0 ? { weight, unit: match[2], reps } : null;
 }
 
+// La posición viaja en Notas, igual que la Serie 0.
+function readWorkoutPosition(exercise) {
+  const match = String(exercise.notes || "").match(/\[Posición: ([1-9]\d*)\]/);
+  return match ? Number(match[1]) : null;
+}
+
 function exerciseVolume(exercise) {
   const canon = canonicalExerciseName(exercise.name);
   const kg = normalizeTricepsUnilateralKg(canon, toKg(exercise.weight, exercise.unit));
@@ -1096,6 +1102,7 @@ function saveWorkoutDraft() {
     unit: card.dataset.unit,
     status: card.dataset.status,
     completed: card.dataset.completed === "true",
+    completionOrder: Number(card.dataset.completionOrder) || null,
     order: Number(card.dataset.order),
     open: card.open,
     values: Object.fromEntries([...card.querySelectorAll("select")].filter(el => !el.classList.contains("i-rep")).map(el => [el.className, el.value])),
@@ -1108,22 +1115,46 @@ function saveWorkoutDraft() {
   }));
 }
 
+function completionOrder(card) {
+  return Number(card.dataset.completionOrder) || Infinity;
+}
+
+function workoutOrderOffset(date) {
+  let lastPosition = 0;
+  for (const session of workouts) {
+    if (session.date !== date || session.split !== curSplit) continue;
+    for (const exercise of session.exercises) {
+      lastPosition = Math.max(lastPosition, readWorkoutPosition(exercise) || 0);
+    }
+  }
+  return lastPosition;
+}
+
 function sortExerciseCards() {
   const box = document.getElementById("exList");
   const cards = [...box.querySelectorAll(".ex-card")];
-  cards.sort((a, b) => Number(a.dataset.completed === "true") - Number(b.dataset.completed === "true") || Number(a.dataset.order) - Number(b.dataset.order));
-  cards.forEach((card, index) => {
+  cards.sort((a, b) => Number(a.dataset.completed === "true") - Number(b.dataset.completed === "true")
+    || completionOrder(a) - completionOrder(b) || Number(a.dataset.order) - Number(b.dataset.order));
+  const offset = workoutOrderOffset(normalizeDate(document.getElementById("gDate").value));
+  let position = 0;
+  cards.forEach(card => {
     box.appendChild(card);
     const completed = card.dataset.completed === "true";
     card.classList.toggle("completed", completed);
-    card.querySelector(".ex-number").textContent = index + 1;
+    const number = card.querySelector(".ex-number");
+    if (Number.isFinite(completionOrder(card))) {
+      card.dataset.completionOrder = String(++position);
+      number.textContent = offset + position;
+    } else {
+      number.textContent = "·";
+    }
     const button = card.querySelector(".complete-btn");
     button.textContent = completed ? "✓" : "○";
     button.setAttribute("aria-pressed", String(completed));
     button.setAttribute("aria-label", `${completed ? "Marcar pendiente" : "Marcar completado"}: ${card.dataset.name}`);
   });
   const completed = cards.filter(card => card.dataset.completed === "true").length;
-  document.getElementById("workoutProgress").textContent = `${completed} de ${cards.length} completados · Pendientes arriba`;
+  document.getElementById("workoutProgress").textContent = `${completed} de ${cards.length} completados · Pendientes arriba · Completados en orden de registro`;
 }
 
 function warmupFromCard(card) {
@@ -1136,6 +1167,7 @@ function handleWorkoutChange(event) {
   const card = event.target.closest(".ex-card");
   if (card && card.dataset.completed === "true" && [...card.querySelectorAll(".i-rep")].some(el => el.value === "")) {
     card.dataset.completed = "false";
+    delete card.dataset.completionOrder;
     sortExerciseCards();
   }
   saveWorkoutDraft();
@@ -1150,7 +1182,13 @@ function toggleExerciseCompleted(button, event) {
     return toast("Registra las series efectivas antes de completar el ejercicio");
   }
   card.dataset.completed = String(completed);
-  if (completed) card.open = false;
+  if (completed) {
+    const ordered = document.querySelectorAll("#exList .ex-card[data-completion-order]");
+    card.dataset.completionOrder = String(ordered.length + 1);
+    card.open = false;
+  } else {
+    delete card.dataset.completionOrder;
+  }
   sortExerciseCards();
   saveWorkoutDraft();
 }
@@ -1174,6 +1212,9 @@ function renderExList() {
       const card = makeExCard(...template);
       box.appendChild(card);
       card.dataset.completed = String(saved.completed);
+      if (saved.completed && Number.isInteger(saved.completionOrder) && saved.completionOrder > 0) {
+        card.dataset.completionOrder = String(saved.completionOrder);
+      }
       card.dataset.status = saved.status;
       Object.entries(saved.values).forEach(([className, value]) => {
         card.getElementsByClassName(className)[0].value = value;
@@ -1231,7 +1272,7 @@ function makeExCard(name, defU, setup, warn) {
   div.dataset.completed = "false";
   div.dataset.order = document.querySelectorAll("#exList .ex-card").length;
   div.innerHTML = `
-    <summary class="ex-summary"><span class="ex-number">${document.querySelectorAll("#exList .ex-card").length + 1}</span><div class="ex-title"><div class="ex-name">${escapeOption(name)}</div><div class="sub ex-preview">${last ? `Última vez: ${last.weight} ${last.unit} · ${escapeOption(cleanReps(last.reps))}` : 'Sin registro previo · Abre para empezar'}</div></div><button type="button" class="complete-btn" aria-pressed="false" aria-label="Marcar completado: ${escapeOption(name)}" onclick="toggleExerciseCompleted(this,event)">○</button></summary>
+    <summary class="ex-summary"><span class="ex-number">·</span><div class="ex-title"><div class="ex-name">${escapeOption(name)}</div><div class="sub ex-preview">${last ? `Última vez: ${last.weight} ${last.unit} · ${escapeOption(cleanReps(last.reps))}` : 'Sin registro previo · Abre para empezar'}</div></div><button type="button" class="complete-btn" aria-pressed="false" aria-label="Marcar completado: ${escapeOption(name)}" onclick="toggleExerciseCompleted(this,event)">○</button></summary>
     <div class="exercise-body">
     <div class="tags">
       <span class="${adv.cls}">${adv.txt}</span>
@@ -1324,7 +1365,10 @@ function saveWorkout() {
   const sessionNotes = [sessionRir, `Descanso ${sessionRest}`, rawNotes].filter(Boolean).join(" · ");
 
   const exercises = [];
-  document.querySelectorAll("#exList .ex-card").forEach(c => {
+  const offset = workoutOrderOffset(date);
+  const cards = [...document.querySelectorAll("#exList .ex-card")];
+  cards.sort((a, b) => completionOrder(a) - completionOrder(b));
+  cards.forEach(c => {
     const selections = [...c.querySelectorAll(".i-rep")].map(el => el.value);
     const warmup = warmupFromCard(c);
     if (selections.every(value => value === "") && !warmup) return;
@@ -1337,7 +1381,9 @@ function saveWorkout() {
     const exRest = c.querySelector(".i-rest").value.trim();
     const exSetup = [c.querySelector(".i-mode").value, c.querySelector(".i-setup").value].join(" · ");
     const warmupNote = warmup ? `[Serie 0: ${warmup.weight} ${warmup.unit} x ${warmup.reps}]` : "";
-    const combinedExNotes = [exSetup, exRir, exRest, warmupNote].filter(Boolean).join(" | ");
+    const order = completionOrder(c);
+    const positionNote = Number.isFinite(order) ? `[Posición: ${offset + order}]` : "";
+    const combinedExNotes = [exSetup, exRir, exRest, warmupNote, positionNote].filter(Boolean).join(" | ");
 
     exercises.push({
       name: c.dataset.name,
@@ -1709,6 +1755,7 @@ function renderProgressAndRanks() {
 
   exArray.forEach(item => {
     const gainKg = +(item.bestKg - item.firstKg).toFixed(1);
+    const lastPosition = readWorkoutPosition(item.last);
     const gainPct = item.firstKg > 0 ? Math.round(((item.bestKg - item.firstKg) / item.firstKg) * 100) : 0;
     sumPctGain += Math.max(0, gainPct);
 
@@ -1750,7 +1797,7 @@ function renderProgressAndRanks() {
 
       <div class="tier-scale">${tiersHTML}</div>
       <div class="sub" style="margin-top:14px;">Volumen registrado: <b>${item.volume.toLocaleString('es-MX', { maximumFractionDigits: 1 })} kg·rep</b> · Incluye aproximaciones registradas</div>
-      <div class="sub" style="margin-top:8px;">Último registro · ${readWarmup(item.last) ? `Serie 0: ${readWarmup(item.last).weight} ${readWarmup(item.last).unit} × ${readWarmup(item.last).reps} reps · ` : ''}Efectivas: ${escapeOption(cleanReps(item.last.reps))} reps con ${item.last.weight} ${escapeOption(item.last.unit)}</div>
+      <div class="sub" style="margin-top:8px;">Último registro · ${readWarmup(item.last) ? `Serie 0: ${readWarmup(item.last).weight} ${readWarmup(item.last).unit} × ${readWarmup(item.last).reps} reps · ` : ''}Efectivas: ${escapeOption(cleanReps(item.last.reps))} reps con ${item.last.weight} ${escapeOption(item.last.unit)}${lastPosition ? ` · Posición ${lastPosition} en la sesión` : ""}</div>
     `;
     box.appendChild(card);
   });
