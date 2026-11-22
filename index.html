@@ -65,7 +65,7 @@
     .nutrition-complete {margin:12px 0 6px;}
     .nutrition-complete input,.template-ingredient input[type=checkbox] {width:20px;height:20px;flex-shrink:0;accent-color:var(--accent);}
     .template-actions {display:flex;flex-wrap:wrap;align-items:center;gap:7px;}
-    #forgetFoodPortion[hidden] {display:none;}
+    #forgetFoodPortion[hidden],#foodPortionPreset[hidden] {display:none;}
     .template-list .item-row {flex-wrap:wrap;}
     .template-dialog {margin:auto;width:min(94vw,510px);max-height:88vh;max-height:88dvh;overflow:auto;padding:20px;border:1px solid var(--border);border-radius:16px;color:var(--text);}
     .template-ingredient {display:grid;grid-template-columns:minmax(0,1fr) 110px;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--border);}
@@ -309,6 +309,7 @@
       <div id="fPrev" class="sub" style="margin-top:8px;"></div>
       <div id="fSource" class="sub"></div>
       <div class="template-actions" style="margin-top:8px;">
+        <button type="button" class="pill" id="foodPortionPreset" onclick="useFoodPortionPreset()" hidden></button>
         <button type="button" class="pill" id="rememberFoodPortion" onclick="rememberUsualPortion()">Guardar porción habitual</button>
         <button type="button" class="pill" id="forgetFoodPortion" onclick="forgetUsualPortion()" hidden>Quitar habitual</button>
         <span class="sub" id="usualPortionInfo"></span>
@@ -640,6 +641,7 @@ function getRankSVG(tierName, color, size = 22) {
   }
 }
 
+const NUTS_CATEGORY = "Nueces, cacahuates y semillas";
 const INITIAL_FOODS = [
   { cat: "Antojitos y Maíz", name: "Quesadilla de queso en tortilla de maíz (1 pza)", cal: 190, prot: 8, carb: 18, fat: 9 },
   { cat: "Antojitos y Maíz", name: "Quesadilla con carne / pollo / tinga (1 pza)", cal: 260, prot: 15, carb: 19, fat: 13 },
@@ -720,7 +722,7 @@ const INITIAL_FOODS = [
   { cat: "Desayunos, Frutas y Básicos", name: "Plátano (1 pza)", cal: 105, prot: 1.3, carb: 27, fat: 0.4 },
   { cat: "Desayunos, Frutas y Básicos", name: "Manzana (1 pza)", cal: 95, prot: 0.5, carb: 25, fat: 0.3 },
   { cat: "Desayunos, Frutas y Básicos", name: "Fruta deshidratada (40g)", cal: 135, prot: 1, carb: 32, fat: 0.2 },
-  { cat: "Desayunos, Frutas y Básicos", name: "Mantequilla de maní natural (1 cda)", cal: 95, prot: 4, carb: 3, fat: 8 },
+  { cat: NUTS_CATEGORY, name: "Mantequilla de maní natural (1 cda)", cal: 95, prot: 4, carb: 3, fat: 8, searchTerms: "crema de cacahuate peanut butter" },
   { cat: "Desayunos, Frutas y Básicos", name: "Yogur griego natural (150g)", cal: 130, prot: 15, carb: 6, fat: 4 }
 ];
 
@@ -979,6 +981,8 @@ function foodQuantityText(item) {
 }
 const FOOD_SOURCES = {
   usda: { label: "USDA FoodData Central", url: "https://fdc.nal.usda.gov/download-datasets/" },
+  usdaNuts: { label: "USDA SR28 · nueces y semillas", url: "https://www.ars.usda.gov/ARSUserFiles/80400535/Data/SR/SR28/reports/sr28fg12.pdf" },
+  usdaPeanuts: { label: "USDA SR28 · cacahuates", url: "https://www.ars.usda.gov/ARSUserFiles/80400535/Data/SR/SR28/reports/sr28fg16.pdf#page=578" },
   fndds: { label: "USDA FNDDS 2021–2023", url: "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases" },
   porkNeck: { label: "USDA FNDDS · carne de huesos del cuello", url: "https://www.spacemelon.com/food/pork-neck-bones-cooked/" },
   skirt: { label: "USDA FoodData Central · arrachera cocida", url: "https://whatyoueat.io/foods/172157" },
@@ -1075,17 +1079,19 @@ const EXPANDED_FOODS = [
     ["Aceite de canola", 884, 0, 0, 100],
     ["Mantequilla con sal", 717, 0.9, 0.1, 81.1],
     ["Mayonesa regular", 680, 1, 0.6, 74.9],
-    ["Almendras naturales", 579, 21.2, 21.6, 49.9],
-    ["Nuez de Castilla", 654, 15.2, 13.7, 65.2],
-    ["Cacahuates naturales sin sal", 567, 25.8, 16.1, 49.2, "mani"],
-    ["Pistaches naturales", 560, 20.2, 27.2, 45.3],
-    ["Chía seca", 486, 16.5, 42.1, 30.7],
-    ["Linaza", 534, 18.3, 28.9, 42.2],
-    ["Pepitas de calabaza sin cáscara", 559, 30.2, 10.7, 49.1],
-    ["Ajonjolí seco", 573, 17.7, 23.4, 49.7],
     ["Miel de abeja", 304, 0.3, 82.4, 0],
     ["Azúcar blanca", 387, 0, 100, 0],
     ["Salsa catsup", 101, 1, 27.4, 0.1, "ketchup"]
+  ]],
+  [NUTS_CATEGORY, [
+    ["Almendras naturales", 579, 21.2, 21.6, 49.9, "almendra cruda"],
+    ["Nuez de Castilla", 654, 15.2, 13.7, 65.2, "nogal walnut nueces"],
+    ["Cacahuates naturales sin sal", 567, 25.8, 16.1, 49.2, "maní crudo cacahuate crudo"],
+    ["Pistaches naturales", 560, 20.2, 27.2, 45.3, "pistacho pistachos"],
+    ["Chía seca", 486, 16.5, 42.1, 30.7],
+    ["Linaza", 534, 18.3, 28.9, 42.2],
+    ["Pepitas de calabaza sin cáscara", 559, 30.2, 10.7, 49.1],
+    ["Ajonjolí seco", 573, 17.7, 23.4, 49.7, "sesamo"]
   ]],
   ["Botanas y postres", [
     ["Palomitas sin aceite", 387, 12.9, 77.8, 4.5],
@@ -1113,15 +1119,49 @@ EXPANDED_FOODS.push(
     quantityMode: "pieces", pieceGrams: 6, source: "salmas", note: "3 piezas pesan 18 g. Los carbohidratos totales incluyen la fibra de la etiqueta." },
   { cat: "Botanas y postres", name: "Galletas Ritz Original México (100 g)", cal: 473.3, prot: 6.2, carb: 67.3, fat: 20.5,
     quantityMode: "grams", defaultAmount: 30, source: "ritz", note: "La etiqueta por 100 g indica 66 g de carbohidratos disponibles y 1.3 g de fibra." },
-  { cat: "Botanas y postres", name: "Cacahuates japoneses Mafer clásico (100 g)", cal: 535, prot: 19.1, carb: 43, fat: 31.7,
-    quantityMode: "grams", defaultAmount: 30, source: "profeco", searchTerms: "cacahuate japones", note: "Referencia del producto Mafer clásico de 230 g." },
-  { cat: "Botanas y postres", name: "Cacahuates japoneses Karate (100 g)", cal: 528, prot: 19.6, carb: 45, fat: 30.1,
-    quantityMode: "grams", defaultAmount: 30, source: "profeco", searchTerms: "cacahuate japones" },
-  { cat: "Botanas y postres", name: "Cacahuates japoneses Kiyakis (100 g)", cal: 547, prot: 19, carb: 42, fat: 33.8,
-    quantityMode: "grams", defaultAmount: 30, source: "profeco", searchTerms: "cacahuate japones" },
+  { cat: NUTS_CATEGORY, name: "Cacahuates japoneses Mafer clásico (100 g)", cal: 535, prot: 19.1, carb: 43, fat: 31.7,
+    quantityMode: "grams", defaultAmount: 30, source: "profeco", searchTerms: "cacahuate japonés maní", note: "Referencia del producto Mafer clásico de 230 g." },
+  { cat: NUTS_CATEGORY, name: "Cacahuates japoneses Karate (100 g)", cal: 528, prot: 19.6, carb: 45, fat: 30.1,
+    quantityMode: "grams", defaultAmount: 30, source: "profeco", searchTerms: "cacahuate japonés maní" },
+  { cat: NUTS_CATEGORY, name: "Cacahuates japoneses Kiyakis (100 g)", cal: 547, prot: 19, carb: 42, fat: 33.8,
+    quantityMode: "grams", defaultAmount: 30, source: "profeco", searchTerms: "cacahuate japonés maní" },
   { cat: "Guisados y Proteínas", name: "Salpicón de res casero (100 g)", cal: 162, prot: 15.8, carb: 2.3, fat: 9.9,
     quantityMode: "grams", source: "salpicon", note: "Estimación con 55 g de res deshebrada, 33 g de jitomate, lechuga y cebolla, 8 g de aguacate y 4 g de aceite. Pesa tostadas y otros acompañamientos por separado." }
 );
+
+// USDA SR28, valores por 100 g comestibles. Cada fila incluye un peso inicial y admite detalles de la porción.
+const NUT_SNACKS = [
+  ["usdaNuts", [
+    ["Nuez pecana natural", 691, 9.17, 13.86, 71.97, "nueces pecanas pacana pecán pecans mitades", 25,
+      { portionPreset: { label: "Usar 12 mitades (25 g)", amount: 25 },
+        note: "Tu medida de referencia: 12 mitades de nuez pecana pesan 25 g." }], // NDB 12142
+    ["Nuez pecana tostada en seco sin sal", 710, 9.50, 13.55, 74.27, "nueces pecanas pacana pecán pecans tostadas", 25], // NDB 12143
+    ["Avellanas naturales", 628, 14.95, 16.70, 60.75, "avellana cruda hazelnut", 25], // NDB 12120
+    ["Nuez de la India natural", 553, 18.22, 30.19, 43.85, "anacardo anacardos marañón marañones cashew cajú merey", 25], // NDB 12087
+    ["Nuez de macadamia natural", 718, 7.91, 13.82, 75.77, "macadamias nueces", 25], // NDB 12131
+    ["Nuez de Brasil natural", 659, 14.32, 11.74, 67.10, "nuez de pará castaña de brasil coquito brazil nuts", 5], // NDB 12078
+    ["Piñones secos sin cáscara", 673, 13.69, 13.08, 68.37, "piñón pine nuts", 15], // NDB 12147
+    ["Semillas de girasol secas sin cáscara", 584, 20.78, 20.00, 51.46, "pipas girasol", 20], // NDB 12036
+    ["Pepitas de calabaza tostadas sin sal", 574, 29.84, 14.71, 49.05, "semillas calabaza sin cáscara pepita tostada", 20], // NDB 12016
+    ["Mezcla de nueces tostadas con cacahuate y sal", 594, 17.30, 25.35, 51.45, "mix frutos secos botana mixta maní", 25,
+      { note: "Valores de una mezcla de referencia. Pueden variar según los ingredientes y sus proporciones." }] // NDB 12635
+  ]],
+  ["usdaPeanuts", [
+    ["Cacahuates tostados en seco sin sal", 587, 24.35, 21.26, 49.66, "maní tostado natural sin aceite", 25], // NDB 16390
+    ["Cacahuates tostados en seco con sal", 587, 24.35, 21.26, 49.66, "maní tostado salado sin aceite", 25], // NDB 16090
+    ["Cacahuates tostados en aceite con sal", 599, 28.03, 15.26, 52.50, "maní salado estilo cóctel", 25], // NDB 16089
+    ["Cacahuates cocidos con sal", 318, 13.50, 21.26, 22.01, "maní hervido cacahuates hervidos sin cáscara", 30] // NDB 16088
+  ]]
+].flatMap(([source, rows]) => rows.map(([name, cal, prot, carb, fat, searchTerms, defaultAmount, options]) => ({
+  cat: NUTS_CATEGORY, name: name + " (100 g)", cal, prot, carb, fat, searchTerms, defaultAmount,
+  quantityMode: "grams", source, ...options
+})));
+
+NUT_SNACKS.push({
+  cat: NUTS_CATEGORY, name: "Crema de almendra natural sin sal (1 cucharada sopera, aprox. 16 g)",
+  cal: 98.24, prot: 3.35, carb: 3.01, fat: 8.88, quantityMode: "spoons", source: "usdaNuts",
+  searchTerms: "mantequilla de almendra almendras almond butter"
+}); // NDB 12195, valores para 16 g
 
 // Platillos del FNDDS 2021–2023. Valores por 100 g comestibles.
 const PREPARED_FOODS = [
@@ -1274,7 +1314,7 @@ function loadMergedCatalog() {
   const merged = [];
   const seen = new Set();
   const savedCustom = saved.filter(item => item.cat === "Mis Platillos Personalizados");
-  [...fruits, ...INITIAL_FOODS, ...basics, ...savedCustom, ...EXPANDED_FOODS, ...PREPARED_FOODS, ...DRINKS, ...saved].forEach(raw => {
+  [...fruits, ...INITIAL_FOODS, ...basics, ...savedCustom, ...EXPANDED_FOODS, ...NUT_SNACKS, ...PREPARED_FOODS, ...DRINKS, ...saved].forEach(raw => {
     const item = portionFood(unitFood(raw));
     const key = foodKey(item.name);
     if (!seen.has(key)) {
@@ -1991,6 +2031,9 @@ function prevFood() {
   const q = f ? foodMultiplier(f) : 0;
   const prevEl = document.getElementById("fPrev");
   const sourceEl = document.getElementById("fSource");
+  const preset = document.getElementById("foodPortionPreset");
+  preset.hidden = !f?.portionPreset;
+  preset.textContent = f?.portionPreset?.label || "";
   const usual = usualPortion(f);
   document.getElementById("rememberFoodPortion").disabled = !f || !q;
   document.getElementById("forgetFoodPortion").hidden = usual === undefined;
@@ -2020,6 +2063,13 @@ function prevFood() {
   } else {
     prevEl.textContent = "Sin coincidencias en la búsqueda.";
   }
+}
+
+function useFoodPortionPreset() {
+  const food = foods[document.getElementById("fSel").value];
+  if (!food?.portionPreset) return;
+  document.getElementById("fQty").value = food.portionPreset.amount;
+  prevFood();
 }
 
 function addCatalogFood() {
