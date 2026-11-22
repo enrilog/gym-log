@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#f5f5f7" />
+  <meta name="gym-log-app" content="1" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>Performance Log</title>
@@ -366,16 +367,32 @@
       <label>URL de Apps Script Conectada</label>
       <input type="url" id="sUrl" style="margin-bottom:10px;" />
       <div style="display:flex; flex-direction:column; gap:8px;">
-        <button type="button" class="btn" onclick="saveUrl()">Guardar URL y Descargar Historial</button>
-        <button type="button" class="btn btn-sec" onclick="pullFromSheets()">Actualizar Datos desde Sheets Ahora</button>
-        <button type="button" class="btn btn-ghost" onclick="flushQueue()">Enviar Cola Pendiente (<span id="qCnt">0</span>)</button>
+        <button type="button" class="btn" onclick="saveUrl()">Guardar conexión</button>
+        <button type="button" class="btn btn-sec" onclick="syncWithSheets()">Sincronizar ahora</button>
       </div>
-      <div id="sMsg" class="sub" style="margin-top:8px;"></div>
+      <p id="sMsg" class="sub" role="status" style="margin-top:8px;"></p>
+    </div>
+    <div class="card">
+      <div class="sec-h"><h2 class="sec-t">Datos en este dispositivo</h2></div>
+      <p id="offlineStatus" class="sub" role="status" style="margin-bottom:8px;">Preparando la apertura sin conexión…</p>
+      <button type="button" class="btn btn-sec" onclick="downloadBackup()">Descargar respaldo JSON</button>
     </div>
   </section>
 </main>
 
 <div id="toast" class="toast">Guardado</div>
+<dialog id="foodEdit" aria-labelledby="foodEditTitle" style="margin:auto;width:min(92vw,400px);padding:20px;border:1px solid var(--border);border-radius:16px;color:var(--text);">
+  <form onsubmit="submitFoodEdit(event)">
+    <h2 id="foodEditTitle" class="sec-t">Editar porción</h2>
+    <p id="foodEditName" class="sub" style="margin-bottom:10px;"></p>
+    <label for="foodEditQty" id="foodEditLabel">Cantidad</label>
+    <input type="number" id="foodEditQty" inputmode="decimal" min="0.001" step="any" required />
+    <div class="actions" style="margin-top:12px;">
+      <button type="submit" class="btn">Guardar</button>
+      <button type="button" class="btn btn-sec" onclick="document.getElementById('foodEdit').close()">Cancelar</button>
+    </div>
+  </form>
+</dialog>
 
 <nav class="nav" aria-label="Navegación principal"><div class="nav-in"><button type="button" class="nav-b active" data-tab="today" onclick="goTab('today')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg><span>Hoy</span></button><button type="button" class="nav-b " data-tab="gym" onclick="goTab('gym')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 5v14M3 8v8M18 5v14M21 8v8M6 12h12"/></svg><span>Entrenar</span></button><button type="button" class="nav-b " data-tab="nut" onclick="goTab('nut')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3v7a3 3 0 0 0 6 0V3M8 3v18M19 3v18M19 3c-5 3-5 9 0 9"/></svg><span>Comidas</span></button><button type="button" class="nav-b " data-tab="prog" onclick="goTab('prog')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4v16h16M7 15l5-5 4 3 5-8"/></svg><span>Progreso</span></button></div></nav>
 
@@ -1101,8 +1118,13 @@ let nutLogs = JSON.parse(localStorage.getItem("gym_cloud_nutrilogs")) || {};
 let weights = mergeMeasurements("weight", JSON.parse(localStorage.getItem("gym_cloud_weights")) || [{ date: "2026-11-16", weight: 65.0 }]);
 let waists = mergeMeasurements("waist", JSON.parse(localStorage.getItem("gym_cloud_waists")) || []);
 let sheetUrl = localStorage.getItem("gym_sheets_url_v1") || DEFAULT_SHEET_URL;
-let queue = JSON.parse(localStorage.getItem("gym_sync_queue_v1")) || [];
 let activeDraftKey = "";
+const PENDING_PREFIX = "gym_sync_v2_";
+const LEGACY_QUEUE_KEY = "gym_sync_queue_v1";
+const SYNC_BATCH_SIZE = 20;
+let syncTask = null;
+let syncState = "initial";
+let lastOperationTime = 0;
 
 function saveLocal() {
   renderToday();
@@ -1111,7 +1133,6 @@ function saveLocal() {
   localStorage.setItem("gym_cloud_nutrilogs", JSON.stringify(nutLogs));
   localStorage.setItem("gym_cloud_weights", JSON.stringify(weights));
   localStorage.setItem("gym_cloud_waists", JSON.stringify(waists));
-  localStorage.setItem("gym_sync_queue_v1", JSON.stringify(queue));
   updateSyncBadge();
 }
 
@@ -1474,17 +1495,14 @@ function saveWorkout() {
   if (exercises.includes(null)) return toast("Selecciona las repeticiones de cada serie o reduce el número de series");
   if (!exercises.length) return toast("Ingresa repeticiones en al menos 1 ejercicio");
   const s = { date, split: curSplit, sessionNotes, exercises };
-  workouts.push(s);
-  workouts.sort((a, b) => a.date.localeCompare(b.date));
-  saveLocal();
+  if (!enqueue({ type: "workout", payload: s })) return;
   localStorage.removeItem(activeDraftKey);
   activeDraftKey = "";
   renderExList();
   renderProgressAndRanks();
 
 
-  toast("Sesión guardada");
-  enqueue({ type: "workout", payload: s });
+  toast("Sesión guardada en este dispositivo");
 }
 
 // Nutrición
@@ -1617,22 +1635,49 @@ function addCatalogFood() {
 }
 
 function quickFood(name, cal, prot, carb, fat, qty = 1) {
-  const d = document.getElementById("nDate").value;
-  if (!nutLogs[d]) nutLogs[d] = [];
-  const item = { name, qty, cal, prot, carb, fat };
-  nutLogs[d].push(item);
-  saveLocal();
+  const date = normalizeDate(document.getElementById("nDate").value);
+  if (!date) return toast("Selecciona una fecha válida");
+  const item = { id: newRecordId(), name, qty, cal, prot, carb, fat };
+  if (!enqueue({ type: "nutrition", date, payload: item })) return;
   renderNut();
 
-  toast(`+${cal} kcal agregadas`);
-  enqueue({ type: "nutrition", date: d, payload: item });
+  toast(`+${cal} kcal guardadas en este dispositivo`);
 }
 
-function delFood(d, idx) {
-  nutLogs[d].splice(idx, 1);
-  saveLocal();
+function delFood(date, id) {
+  const item = (nutLogs[date] || []).find(row => row.id === id);
+  if (!item || !window.confirm(`¿Quitar «${item.name}» del registro?`)) return;
+  if (!enqueue({ type: "nutrition", date, payload: item, deleted: true })) return;
   renderNut();
+  toast("Comida quitada en este dispositivo");
+}
 
+let foodEditTarget;
+function openFoodEdit(date, item) {
+  const measure = item.name.match(/\(100 (g|ml)\)$/);
+  const factor = measure ? 100 : 1;
+  foodEditTarget = { date, id: item.id, factor };
+  document.getElementById("foodEditName").textContent = item.name;
+  document.getElementById("foodEditLabel").textContent = measure ? `Cantidad (${measure[1]})` : "Cantidad de porciones";
+  document.getElementById("foodEditQty").value = +(item.qty * factor).toFixed(3);
+  document.getElementById("foodEdit").showModal();
+}
+
+function submitFoodEdit(event) {
+  event.preventDefault();
+  const { date, id, factor } = foodEditTarget;
+  const item = (nutLogs[date] || []).find(row => row.id === id);
+  const dialog = document.getElementById("foodEdit");
+  if (!item) { dialog.close(); return toast("La comida ya no está en el registro"); }
+  const qty = document.getElementById("foodEditQty").valueAsNumber / factor;
+  if (!Number.isFinite(qty) || qty <= 0 || item.qty <= 0) return toast("Ingresa una cantidad válida");
+  if (qty !== item.qty) {
+    const payload = { ...item, qty, ...foodNutritionForPortion(item, qty / item.qty) };
+    if (!enqueue({ type: "nutrition", date, payload })) return;
+    renderNut();
+    toast("Porción guardada en este dispositivo");
+  }
+  dialog.close();
 }
 
 function renderNut() {
@@ -1642,13 +1687,15 @@ function renderNut() {
   const list = nutLogs[d] || [];
   const box = document.getElementById("fList");
   box.innerHTML = list.length ? "" : `<div class="sub">Sin registros para esta fecha.</div>`;
-  list.forEach((it, i) => {
+  list.forEach(it => {
     const r = document.createElement("div");
     r.className = "item-row";
     r.innerHTML = `<div><b>${escapeOption(it.name)}</b> <span class="sub">${escapeOption(foodQuantityText(it))}</span>
       <div class="sub">${formatNutrition(it.cal)} kcal · ${formatNutrition(it.prot)} g proteína · ${formatNutrition(it.carb)} g carbohidratos · ${formatNutrition(it.fat)} g grasas</div></div>
-      <button type="button" class="pill">Quitar</button>`;
-    r.querySelector("button").onclick = () => delFood(d, i);
+      <div><button type="button" class="pill" data-food-edit>Editar</button>
+      <button type="button" class="pill" data-food-remove>Quitar</button></div>`;
+    r.querySelector("[data-food-edit]").onclick = () => openFoodEdit(d, it);
+    r.querySelector("[data-food-remove]").onclick = () => delFood(d, it.id);
     box.appendChild(r);
   });
   renderNutritionMetrics("dailyNutrition", nutritionTotals(list), ["cal", "prot", "carb", "fat"]);
@@ -1689,11 +1736,10 @@ function saveWeight() {
   const date = normalizeDate(document.getElementById("wDate").value);
   const weight = document.getElementById("wVal").valueAsNumber;
   if (!date || !Number.isFinite(weight) || weight <= 0) return toast("Ingresa un peso y una fecha válidos");
-  weights = mergeMeasurements("weight", weights, [{ date, weight }]);
-  enqueue({ type: "weight", payload: { date, weight } });
+  if (!enqueue({ type: "weight", payload: { date, weight } })) return;
   renderWeight();
   renderProgressAndRanks();
-  toast("Peso registrado");
+  toast("Peso guardado en este dispositivo");
 }
 
 function renderWeight() {
@@ -1914,107 +1960,289 @@ function renderProgressAndRanks() {
 // Sincronización con Google Sheets
 function updateSyncBadge() {
   const dot = document.getElementById("syncDot");
-  const txt = document.getElementById("syncTxt");
-  document.getElementById("qCnt").textContent = queue.length;
-  if (!sheetUrl) { dot.className = "dot"; txt.textContent = "Sin URL"; }
-  else if (queue.length > 0) { dot.className = "dot wait"; txt.textContent = `Cola (${queue.length})`; }
-  else { dot.className = "dot on"; txt.textContent = `Sheets (${workouts.length})`; }
+  const label = document.getElementById("syncTxt");
+  const message = document.getElementById("sMsg");
+  const pending = pendingOperations().length;
+  const status = {
+    initial: "Los registros se guardan en este dispositivo.",
+    busy: "Consultando Google Sheets…",
+    confirmed: "Google Sheets confirmó la sincronización.",
+    offline: "Sin conexión. Los cambios pendientes se enviarán al volver.",
+    outdated: "La versión conectada de Apps Script aún no confirma los cambios.",
+    unavailable: "No se pudo confirmar con Sheets. Los cambios pendientes siguen guardados en este dispositivo."
+  };
+  dot.className = syncState === "confirmed" && !pending ? "dot on" : "dot wait";
+  label.textContent = pending ? `Pendientes (${pending})` :
+    syncState === "confirmed" ? "Sheets confirmado" : syncState === "busy" ? "Sincronizando…" : "Guardado local";
+  message.textContent = status[syncState];
 }
 
-async function saveUrl() {
-  sheetUrl = document.getElementById("sUrl").value.trim() || DEFAULT_SHEET_URL;
-  localStorage.setItem("gym_sheets_url_v1", sheetUrl);
-  updateSyncBadge();
-  await flushQueue();
-  await pullFromSheets();
+function storageKeys() {
+  return Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index)).filter(Boolean);
 }
 
-// Compara cantidades de registros iguales: dos comidas idénticas pueden ser legítimas.
-// Sheets puede devolver una copia atrasada; nunca debe borrar la copia del celular.
-function mergeNutritionLogs(local, remote) {
-  const merged = {};
-  const key = item => JSON.stringify([
-    String(item.name), Number(item.qty), Number(item.cal),
-    Number(item.prot), Number(item.carb || 0), Number(item.fat || 0)
-  ]);
-  for (const date of new Set([...Object.keys(local), ...Object.keys(remote)])) {
-    const rows = [...(remote[date] || [])];
-    const available = new Map();
-    rows.forEach(item => available.set(key(item), (available.get(key(item)) || 0) + 1));
-    for (const item of local[date] || []) {
-      const k = key(item);
-      const count = available.get(k) || 0;
-      if (count) available.set(k, count - 1);
-      else rows.push(item);
+function pendingOperations() {
+  return storageKeys().filter(key => key.startsWith(PENDING_PREFIX))
+    .map(key => JSON.parse(localStorage.getItem(key))).filter(Boolean)
+    .sort((a, b) => a.order - b.order || a.id.localeCompare(b.id));
+}
+
+function newRecordId() {
+  return Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, "0")).join("");
+}
+
+// Matches legacy rows in Apps Script, including repeated identical meals.
+function syncFingerprint(value) {
+  let a = 2166136261, b = 2246822519;
+  for (let i = 0; i < value.length; i++) {
+    a = Math.imul(a ^ value.charCodeAt(i), 16777619);
+    b = Math.imul(b ^ value.charCodeAt(i), 3266489917);
+  }
+  return (a >>> 0).toString(36) + "-" + (b >>> 0).toString(36);
+}
+
+function nutritionSignature(date, item) {
+  return JSON.stringify([date, String(item.name), Number(item.qty), Number(item.cal),
+    Number(item.prot), Number(item.carb || 0), Number(item.fat || 0)]);
+}
+
+function migrateLocalSync() {
+  const candidates = new Map();
+  const counts = new Map();
+  const ids = new Set(Object.values(nutLogs).flat().map(item => item.id).filter(Boolean));
+  function assignId(date, item) {
+    const signature = nutritionSignature(date, item);
+    const base = "legacy-" + syncFingerprint(signature);
+    let occurrence = counts.get(base) || 0;
+    let id;
+    do { id = base + "-" + (++occurrence); } while (ids.has(id));
+    counts.set(base, occurrence);
+    ids.add(id);
+    return id;
+  }
+  Object.entries(nutLogs).forEach(([date, items]) => {
+    items.forEach(item => {
+      if (!item.id) item.id = assignId(date, item);
+      const signature = nutritionSignature(date, item);
+      if (!candidates.has(signature)) candidates.set(signature, []);
+      candidates.get(signature).push(item.id);
+    });
+  });
+  const legacy = JSON.parse(localStorage.getItem(LEGACY_QUEUE_KEY) || "[]");
+  const migrated = new Array(legacy.length);
+  for (let index = legacy.length - 1; index >= 0; index--) {
+    const item = legacy[index];
+    const id = "migration-" + syncFingerprint(JSON.stringify(item)) + "-" + index;
+    let payload = item.payload;
+    if (item.type === "nutrition") {
+      const signature = nutritionSignature(item.date, payload);
+      const recordId = candidates.get(signature)?.pop() || assignId(item.date, payload);
+      payload = { ...payload, id: recordId };
     }
-    merged[date] = rows;
+    migrated[index] = { ...item, payload, id, order: index, legacy: true };
+  }
+  migrated.forEach(operation => {
+    const key = PENDING_PREFIX + operation.id;
+    if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(operation));
+  });
+  // Save IDs before removing the old queue. An interrupted migration can safely rerun.
+  localStorage.setItem("gym_cloud_nutrilogs", JSON.stringify(nutLogs));
+  localStorage.removeItem(LEGACY_QUEUE_KEY);
+  pendingOperations().forEach(applyPendingOperation);
+}
+
+function mergeWorkoutSnapshots(...sources) {
+  const dated = new Map();
+  const undated = new Map();
+  for (const session of sources.flat()) {
+    if (!session.date) {
+      const key = session.dateIssue?.row ?? JSON.stringify(session.exercises);
+      undated.set(key, session);
+      continue;
+    }
+    const key = JSON.stringify([session.date, session.split]);
+    const previous = dated.get(key);
+    const indexed = new Map((previous?.exercises || []).map(exercise => [exercise.name.toLowerCase(), exercise]));
+    session.exercises.forEach(exercise => indexed.set(exercise.name.toLowerCase(), exercise));
+    dated.set(key, { ...previous, ...session, exercises: [...indexed.values()] });
+  }
+  return sanitizeWorkoutsList([...dated.values(), ...undated.values()]);
+}
+
+function applyPendingOperation(operation) {
+  const { type, date, payload, deleted } = operation;
+  if (type === "workout") workouts = mergeWorkoutSnapshots(workouts, [payload]);
+  if (type === "weight") weights = mergeMeasurements("weight", weights, [payload]);
+  if (type === "nutrition") {
+    const items = nutLogs[date] || [];
+    const index = items.findIndex(item => item.id === payload.id);
+    if (deleted && index >= 0) items.splice(index, 1);
+    if (!deleted && index >= 0) items[index] = payload;
+    if (!deleted && index < 0) items.push(payload);
+    nutLogs[date] = items;
+  }
+}
+
+function mergeNutritionLogs(local, remote, deletedIds) {
+  const merged = {};
+  const deleted = new Set(deletedIds);
+  const remoteIds = new Set(Object.values(remote).flat().map(item => item.id));
+  for (const date of new Set([...Object.keys(local), ...Object.keys(remote)])) {
+    merged[date] = [...(remote[date] || []), ...(local[date] || []).filter(item => !remoteIds.has(item.id) && !deleted.has(item.id))];
   }
   return merged;
 }
 
-async function pullFromSheets() {
-  if (!sheetUrl) return;
-  const msg = document.getElementById("sMsg");
-  if (msg) msg.textContent = "Descargando base histórica desde Google Sheets...";
+function enqueue(item) {
+  const order = Math.max(Date.now() * 1000, lastOperationTime + 1, (pendingOperations().at(-1)?.order || 0) + 1);
+  lastOperationTime = order;
+  const operation = { ...item, id: newRecordId(), order };
   try {
-    const res = await fetch(sheetUrl);
-    const data = await res.json();
-    if (data && data.ok) {
-      if (Array.isArray(data.workouts)) {
-        const merged = sanitizeWorkoutsList(data.workouts);
-        queue.filter(item => item.type === "workout").forEach(item => {
-          const local = item.payload;
-          const remote = merged.find(s => s.date === local.date && s.split === local.split);
-          if (!remote) merged.push(local);
-          else local.exercises.forEach(exercise => {
-            if (!remote.exercises.some(e => e.name === exercise.name)) remote.exercises.push(exercise);
+    localStorage.setItem(PENDING_PREFIX + operation.id, JSON.stringify(operation));
+  } catch {
+    toast("No se pudo guardar en este dispositivo. Revisa el espacio disponible.");
+    return false;
+  }
+  applyPendingOperation(operation);
+  try { saveLocal(); } catch { updateSyncBadge(); } // The operation itself is already durable.
+  syncWithSheets();
+  return true;
+}
+
+async function saveUrl() {
+  const input = document.getElementById("sUrl");
+  const value = input.value.trim() || DEFAULT_SHEET_URL;
+  let url;
+  try { url = new URL(value); } catch { return toast("Ingresa una URL válida de Apps Script"); }
+  if (url.protocol !== "https:") return toast("La URL de Apps Script debe usar HTTPS");
+  if (sheetUrl !== url.href && pendingOperations().length &&
+      !window.confirm("¿Enviar los cambios pendientes a la nueva conexión?")) return;
+  await syncTask;
+  sheetUrl = url.href;
+  input.value = sheetUrl;
+  localStorage.setItem("gym_sheets_url_v1", sheetUrl);
+  await syncWithSheets();
+}
+
+async function requestSheets(url, options, readBody = false) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 12000);
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    if (readBody) {
+      if (!response.ok) throw new Error("Respuesta de Sheets no disponible");
+      return await response.json();
+    }
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function syncWithSheets() {
+  if (syncTask) return syncTask;
+  if (navigator.onLine === false) {
+    syncState = "offline";
+    updateSyncBadge();
+    return Promise.resolve();
+  }
+  syncTask = runSheetsSync().finally(() => { syncTask = null; });
+  return syncTask;
+}
+
+async function runSheetsSync() {
+  syncState = "busy";
+  updateSyncBadge();
+  try {
+    let more;
+    do {
+      const batch = pendingOperations().slice(0, SYNC_BATCH_SIZE);
+      const url = new URL(sheetUrl);
+      url.searchParams.set("sync", "2");
+      url.searchParams.set("ids", batch.map(operation => operation.id).join(","));
+      if (batch.length) {
+        try {
+          await requestSheets(sheetUrl, {
+            method: "POST", mode: "no-cors",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({ type: "sync", version: 2, operations: batch })
           });
-        });
-        workouts = sanitizeWorkoutsList(merged);
+        } catch {
+          // A timed-out POST may have committed. Check receipts before retrying it.
+        }
       }
-      if (data.nutLogs) nutLogs = mergeNutritionLogs(nutLogs, data.nutLogs);
-      if (Array.isArray(data.weights) && data.weights.length) {
-        const pending = queue.filter(item => item.type === "weight").map(item => item.payload);
-        weights = mergeMeasurements("weight", weights, data.weights, pending);
+      const data = await requestSheets(url, { cache: "no-store" }, true);
+      if (!data?.ok) throw new Error("Sheets no devolvió el historial");
+      if (data.syncVersion !== 2) {
+        syncState = "outdated";
+        return;
       }
+      if (!Array.isArray(data.acknowledged) || !Array.isArray(data.workouts) ||
+          !Array.isArray(data.weights) || !Array.isArray(data.deletedFoodIds) || !data.nutLogs) {
+        throw new Error("Respuesta de sincronización incompleta");
+      }
+      const received = new Set(data.acknowledged);
+      const confirmed = new Set(batch.filter(operation => received.has(operation.id)).map(operation => operation.id));
+      const remaining = pendingOperations().filter(operation => !confirmed.has(operation.id));
+      workouts = mergeWorkoutSnapshots(workouts, sanitizeWorkoutsList(data.workouts));
+      nutLogs = mergeNutritionLogs(nutLogs, data.nutLogs, data.deletedFoodIds);
+      weights = mergeMeasurements("weight", weights, data.weights);
+      remaining.forEach(applyPendingOperation);
       saveLocal();
+      confirmed.forEach(id => localStorage.removeItem(PENDING_PREFIX + id));
       renderExList();
       renderNut();
       renderWeight();
       renderDailyNutritionChart();
       renderProgressAndRanks();
 
-
-      if (msg) msg.textContent = `Conectado: ${workouts.length} sesiones sincronizadas desde Google Sheets.`;
-    }
-  } catch (err) {
-    if (msg) msg.textContent = "Modo offline activo: mostrando datos guardados en caché.";
+      more = remaining.length > 0 && (confirmed.size > 0 || batch.length === 0);
+      syncState = remaining.length ? "unavailable" : "confirmed";
+    } while (more);
+  } catch {
+    syncState = navigator.onLine === false ? "offline" : "unavailable";
+  } finally {
+    updateSyncBadge();
   }
 }
 
-function enqueue(item) {
-  queue.push(item);
-  saveLocal();
-  flushQueue();
+function downloadBackup() {
+  const drafts = Object.fromEntries(storageKeys().filter(key => key.startsWith("gym_draft_v1_"))
+    .map(key => [key, JSON.parse(localStorage.getItem(key))]));
+  const payload = { version: 1, exportedAt: new Date().toISOString(),
+    workouts, meals: nutLogs, weights, waists,
+    customFoods: foods.filter(food => food.cat === "Mis Platillos Personalizados"), drafts,
+    pending: pendingOperations() };
+  const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `gym-log-respaldo-${localToday()}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
 }
 
-async function flushQueue() {
-  if (!sheetUrl || !queue.length) return;
-  const pending = [];
-  for (const item of queue) {
-    try {
-      await fetch(sheetUrl, {
-        method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify(item)
-      });
-    } catch (e) {
-      pending.push(item);
-    }
+async function prepareOffline() {
+  const status = document.getElementById("offlineStatus");
+  if (!("serviceWorker" in navigator)) {
+    status.textContent = "Este navegador no admite la apertura sin conexión.";
+    return;
   }
-  queue = pending;
-  saveLocal();
+  let timer;
+  try {
+    await navigator.serviceWorker.register("./sw.js");
+    await Promise.race([
+      navigator.serviceWorker.ready,
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error("La copia offline no se instaló")), 15000);
+      })
+    ]);
+    status.textContent = "Listo para abrir sin conexión en este navegador.";
+  } catch {
+    status.textContent = "La copia para abrir sin conexión aún no está disponible.";
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function selectCatalogFood(index, amount) {
@@ -2344,6 +2572,7 @@ function localToday() {
 }
 
 window.onload = () => {
+  migrateLocalSync();
   document.getElementById("gNotes").addEventListener("change", saveWorkoutDraft);
   document.getElementById("gRir").innerHTML = optionsHTML(RIR_OPTIONS, "RIR 2");
   document.getElementById("gRest").innerHTML = optionsHTML(REST_OPTIONS, "2:00 min");
@@ -2370,9 +2599,25 @@ window.onload = () => {
   updateSyncBadge();
   renderToday();
   goTab("today");
-  pullFromSheets();
+  prepareOffline();
+  syncWithSheets();
+  window.addEventListener("online", () => {
+    if (!navigator.serviceWorker?.controller) prepareOffline();
+    syncWithSheets();
+  });
+  window.addEventListener("offline", () => {
+    syncState = "offline";
+    updateSyncBadge();
+  });
+  window.addEventListener("storage", event => {
+    if (event.key?.startsWith(PENDING_PREFIX)) updateSyncBadge();
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) syncWithSheets();
+  });
   window.setInterval(() => {
     if (document.getElementById("v-today").classList.contains("active")) renderToday();
+    if (pendingOperations().length) syncWithSheets();
   }, 60000);
 };
 </script>
