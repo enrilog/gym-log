@@ -107,6 +107,9 @@
     .exercise-history li {display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--border);}
     .exercise-history li:first-child {margin-top:6px;}
     .exercise-history time {flex-shrink:0;}
+    .history-entry {min-width:0;}
+    .exercise-note {margin-top:6px;white-space:pre-wrap;overflow-wrap:anywhere;}
+    .exercise-note-field {min-height:74px;resize:vertical;}
     .ex-card {padding:0;overflow:hidden;} summary {list-style:none;} summary::-webkit-details-marker {display:none;}
     .ex-summary {display:flex;align-items:center;gap:12px;padding:20px;min-height:88px;} .ex-summary:after {content:'+';font-size:24px;font-weight:300;color:var(--muted);margin-left:auto;}
     .ex-card[open]>.ex-summary:after {content:'−';} .ex-title {min-width:0;flex:1;} .ex-name {font-weight:650;font-size:15px;line-height:1.4;margin-bottom:5px;} .ex-summary .sub {font-size:12px;}
@@ -779,9 +782,21 @@ function toKg(w, u) {
   return u === "lbs" ? +(w / 2.20462).toFixed(1) : +Number(w).toFixed(1);
 }
 
+// La nota libre se guarda como texto en Notas, separado de la información de las series.
+const EXERCISE_NOTE_PATTERN = /(?:^| \| )Nota del ejercicio: ("(?:[^"\\]|\\.)*")(?= \| |$)/;
+function readExerciseNote(exercise) {
+  const match = String(exercise.notes || "").match(EXERCISE_NOTE_PATTERN);
+  if (!match) return "";
+  try { return JSON.parse(match[1]); }
+  catch { return ""; }
+}
+function exerciseMetadataNotes(exercise) {
+  return String(exercise.notes || "").replace(EXERCISE_NOTE_PATTERN, "");
+}
+
 // Las notas viajan con el backend actual y conservan la serie 0 al sincronizar.
 function readWarmup(exercise) {
-  const match = String(exercise.notes || "").match(/\[Serie 0: (\d+(?:\.\d+)?) (kg|lbs) x (\d+)\]/);
+  const match = exerciseMetadataNotes(exercise).match(/\[Serie 0: (\d+(?:\.\d+)?) (kg|lbs) x (\d+)\]/);
   if (!match) return null;
   const weight = Number(match[1]);
   const reps = Number(match[3]);
@@ -790,7 +805,7 @@ function readWarmup(exercise) {
 
 // La posición viaja en Notas, igual que la Serie 0.
 function readWorkoutPosition(exercise) {
-  const match = String(exercise.notes || "").match(/\[Posición: ([1-9]\d*)\]/);
+  const match = exerciseMetadataNotes(exercise).match(/\[Posición: ([1-9]\d*)\]/);
   return match ? Number(match[1]) : null;
 }
 
@@ -987,6 +1002,7 @@ const FOOD_SOURCES = {
   cinepolis: { label: "Menú Cinépolis México · gramajes", url: "https://static.cinepolis.com/pdf/menu-nuevo-version-2-mx.pdf" },
   profecoRamen: { label: "Profeco · estudio de sopas instantáneas", url: "https://revistadelconsumidor.profeco.gob.mx/media/revistas/revista_2026_9_completo.pdf" },
   barcelTakis: { label: "Barcel México · Takis Fuego", url: "https://www.barcel.com.mx/marcas/takis/fuego" },
+  lala100: { label: "Ficha nutrimental · Leche Lala 100 +Proteína 1 L", url: "https://www.heb.com.mx/lala-leche-100-sin-lactosa-proteina-1-l-596941/p" },
   cocaOriginal: { label: "Coca-Cola México · formulación Original", url: "https://www.coca-cola.com/mx/es/brands/coca-cola/productos/coca-cola-original" },
   cocaZero: { label: "Coca-Cola México · Sin Azúcar", url: "https://www.coca-cola.com/mx/es/brands/coca-cola/productos/coca-cola-sin-azucar" },
   fantaMx: { label: "Coca-Cola México · Fanta Naranja", url: "https://www.coca-cola.com/mx/es/brands/fanta/productos" },
@@ -1261,6 +1277,7 @@ const DRINKS = [
 
 // FNDDS: peso por fl oz. Marcas: etiqueta por 12 fl oz.
 DRINKS.push(...[
+  ["Leche Lala 100 sin lactosa UHT +Proteína 54 g por litro", 53, 5.4, 3.4, 2, 250, "lala100", "leche lala100 54g 54 gramos proteina deslactosada tapa dorada"],
   ["Cerveza regular", 43.62, 0.47, 3.6, 0.0, 355, "fndds", "cerveza lager chela"], // FNDDS 93101000
   ["Cerveza light", 29.42, 0.24, 1.66, 0.0, 355, "fndds", "cerveza ligera chela light"], // FNDDS 93102000
   ["Cerveza sin alcohol", 37.53, 0.21, 8.17, 0.12, 355, "fndds", ""], // FNDDS 92803000
@@ -1461,7 +1478,7 @@ function effectiveReps(value) {
 }
 
 function exerciseRir(exercise) {
-  const match = String(exercise.notes || "").match(/\bRIR\s*([0-5])\b/i);
+  const match = exerciseMetadataNotes(exercise).match(/\bRIR\s*([0-5])\b/i);
   return match ? Number(match[1]) : null;
 }
 
@@ -1578,6 +1595,7 @@ function saveWorkoutDraft(markActivity = false) {
     completionOrder: Number(card.dataset.completionOrder) || null,
     order: Number(card.dataset.order),
     open: card.open,
+    note: card.querySelector(".i-note").value,
     values: Object.fromEntries([...card.querySelectorAll("select")].filter(el => !el.classList.contains("i-rep")).map(el => [el.className, el.value])),
     reps: [...card.querySelectorAll(".i-rep")].map(el => el.value)
   }));
@@ -1779,7 +1797,8 @@ function renderExList() {
     document.getElementById("gNotes").value = draft.notes;
     draft.exercises.sort((a, b) => a.order - b.order).forEach(saved => {
       const hasRecordedSeries = saved.reps.some(rep => rep !== "") || saved.values["i-warm-rep"];
-      const archivedTemplate = hasRecordedSeries && ARCHIVED_TEMPLATES.find(t => t[0] === saved.name);
+      const hasDraftContent = hasRecordedSeries || saved.note?.trim();
+      const archivedTemplate = hasDraftContent && ARCHIVED_TEMPLATES.find(t => t[0] === saved.name);
       const template = TEMPLATES[curSplit].find(t => t[0] === saved.name) || archivedTemplate;
       if (!template) return;
       const card = makeExCard(...template);
@@ -1789,10 +1808,11 @@ function renderExList() {
         card.dataset.completionOrder = String(saved.completionOrder);
       }
       card.dataset.status = saved.status;
+      card.querySelector(".i-note").value = saved.note ?? "";
       Object.entries(saved.values).forEach(([className, value]) => {
         const field = card.getElementsByClassName(className)[0];
         if (!field) return;
-        if (className === "i-w" && value) ensureWeightOption(field, value);
+        if (["i-w", "i-warm-weight"].includes(className) && value) ensureWeightOption(field, value);
         field.value = value;
       });
       renderRepSelectors(card);
@@ -1847,6 +1867,8 @@ function makeExCard(name, defU, setup, warn) {
   const w = last ? last.weight : 25;
   const u = last ? last.unit : defU;
   const lastSeries = effectiveReps(last?.reps).length || 3;
+  const note = last ? readExerciseNote(last) : "";
+  const canCopyLoad = last && Number.isFinite(Number(last.weight)) && Number(last.weight) > 0 && ["kg", "lbs"].includes(last.unit);
   const defRir = document.getElementById("gRir")?.value || "RIR 2";
   const defRest = document.getElementById("gRest")?.value || (curSplit === "Superior" ? "2:00 min" : "1:30 min");
 
@@ -1870,7 +1892,8 @@ function makeExCard(name, defU, setup, warn) {
     <div class="exercise-comparison">
       <div><b>Última vez${last ? ` · ${escapeOption(last.date)}` : ""}</b>
         <p class="sub">${last ? `${escapeOption(last.weight)} ${escapeOption(last.unit)}${last.historicalBilateral ? " (convertidos)" : ""} · ${escapeOption(cleanReps(last.reps))} reps${exerciseRir(last) === null ? "" : ` · RIR ${exerciseRir(last)}`}` : "Sin registro previo"}</p>
-        ${last ? '<button type="button" class="pill copy-load">Copiar carga anterior</button>' : ""}
+        ${note ? `<p class="sub exercise-note">${escapeOption(note)}</p>` : ""}
+        ${canCopyLoad ? '<button type="button" class="pill copy-load">Copiar carga anterior</button>' : ""}
       </div>
       <div><b>Sesión actual</b><p class="sub current-sets"></p></div>
     </div>
@@ -1917,6 +1940,10 @@ function makeExCard(name, defU, setup, warn) {
         <input type="number" class="i-step" min="0.01" max="500" step="0.01" inputmode="decimal" onchange="saveLoadStep(this)" />
       </div>
     </div>
+    <label>Nota del ejercicio (opcional)
+      <textarea class="i-note exercise-note-field" aria-label="Nota del ejercicio" rows="2" maxlength="500"
+        placeholder="Ej. Cambié el agarre" oninput="saveWorkoutDraft(true)"></textarea>
+    </label>
     </details><div class="st-row">
       <button type="button" data-status="☑️" class="st-btn active" onclick="setSt(this,'☑️')">Cumplido</button>
       <button type="button" data-status="✅" class="st-btn" onclick="setSt(this,'✅')">Dominado</button>
@@ -1927,12 +1954,30 @@ function makeExCard(name, defU, setup, warn) {
   renderRepSelectors(div);
   refreshExerciseAdvice(div, last);
   renderExerciseCurrent(div);
-  if (last) div.querySelector(".copy-load").onclick = () => {
-    div.querySelector(".i-w").value = last.weight;
-    setU(div.querySelector(last.unit === "lbs" ? ".unit-lbs" : ".unit-kg"), last.unit);
-    saveWorkoutDraft(true);
-  };
+  if (canCopyLoad) div.querySelector(".copy-load").onclick = () => copyPreviousLoad(div, last);
   return div;
+}
+
+function copyPreviousLoad(card, previous) {
+  const current = card.querySelector(".i-w");
+  const oldUnit = card.dataset.unit;
+  const { unit } = previous;
+  const weight = Number(previous.weight);
+  const question = `¿Copiar la carga anterior de ${weight} ${unit}? Se reemplazará la carga actual de ${current.value} ${oldUnit}.`;
+  if (!window.confirm(question)) return;
+
+  const warmup = card.querySelector(".i-warm-weight");
+  if (unit !== oldUnit && warmup.value !== "") {
+    const factor = unit === "kg" ? 1 / 2.20462 : 2.20462;
+    const equivalent = +(Number(warmup.value) * factor).toFixed(2);
+    ensureWeightOption(warmup, equivalent);
+    warmup.value = String(equivalent);
+  }
+  ensureWeightOption(current, weight);
+  current.value = String(weight);
+  setU(card.querySelector(unit === "lbs" ? ".unit-lbs" : ".unit-kg"), unit);
+  saveWorkoutDraft(true);
+  toast(`Carga anterior copiada: ${weight} ${unit}`);
 }
 
 function renderExerciseCurrent(card) {
@@ -1996,7 +2041,9 @@ function saveWorkout() {
     const warmupNote = warmup ? `[Serie 0: ${warmup.weight} ${warmup.unit} x ${warmup.reps}]` : "";
     const order = completionOrder(c);
     const positionNote = Number.isFinite(order) ? `[Posición: ${offset + order}]` : "";
-    const combinedExNotes = [exSetup, exRir, exRest, warmupNote, positionNote].filter(Boolean).join(" | ");
+    const note = c.querySelector(".i-note").value.trim();
+    const exerciseNote = note ? `Nota del ejercicio: ${JSON.stringify(note)}` : "";
+    const combinedExNotes = [exSetup, exRir, exRest, warmupNote, positionNote, exerciseNote].filter(Boolean).join(" | ");
 
     exercises.push({
       name: c.dataset.name,
@@ -2489,9 +2536,10 @@ function exerciseHistoryHTML(history) {
     <ul>${recent.reverse().map(exercise => {
       const record = calibratedPlateLoad(exercise);
       const rir = exerciseRir(record);
+      const note = readExerciseNote(record);
       const date = new Date(record.date + "T12:00:00").toLocaleDateString("es-MX", { day: "numeric", month: "short" });
       return `<li><time class="sub" datetime="${escapeOption(record.date)}">${escapeOption(date)}</time>
-        <span>${escapeOption(record.weight)} ${escapeOption(record.unit)} · ${effectiveReps(record.reps).join(" / ")} reps${rir === null ? "" : ` · RIR ${rir}`}${record.historicalBilateral ? " · convertido" : ""}</span></li>`;
+        <div class="history-entry"><span>${escapeOption(record.weight)} ${escapeOption(record.unit)} · ${effectiveReps(record.reps).join(" / ")} reps${rir === null ? "" : ` · RIR ${rir}`}${record.historicalBilateral ? " · convertido" : ""}</span>${note ? `<p class="sub exercise-note">${escapeOption(note)}</p>` : ""}</div></li>`;
     }).join("")}</ul>
   </div>`;
 }
